@@ -1,6 +1,6 @@
 """Vendor Connectors - Universal vendor connectors for the jbcom ecosystem."""
 
-__version__ = "0.1.0"
+__version__ = "202511.2"
 
 from vendor_connectors.aws import AWSConnector
 from vendor_connectors.connectors import VendorConnectors
