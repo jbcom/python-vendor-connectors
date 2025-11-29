@@ -168,7 +168,7 @@ class TestAWSConnector:
             "vendor_connectors.aws.is_nothing", side_effect=lambda value: value in (None, "", {})
         ):
             secrets = connector.list_secrets(
-                get_secret_values=False,
+                get_secret_values=True,
                 skip_empty_secrets=True,
                 execution_role_arn="arn:aws:iam::789:role/override",
                 role_session_name="session",
