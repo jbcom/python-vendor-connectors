@@ -27,7 +27,7 @@ class VendorConnectors(DirectedInputsClass):
     """Public API for vendor connectors with client caching.
 
     This class provides cached access to all vendor connectors, similar to
-    how TerraformDataSource works in the FlipsideCrypto terraform-modules.
+    how TerraformDataSource works in terraform-modules libraries.
 
     Usage:
         vc = VendorConnectors()

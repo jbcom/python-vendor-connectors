@@ -1,12 +1,15 @@
-"""Google connector constants aligned with terraform-modules settings.
+"""Google connector constants for terraform-modules settings.
 
 These constants provide default configurations for Google Cloud and Workspace
-operations that match the terraform-modules library's established patterns.
+operations. Override these values with environment-specific configuration.
 """
 
 from __future__ import annotations
 
-DEFAULT_DOMAIN = "flipsidecrypto.com"
+import os
+
+# Default domain - MUST be overridden via environment variable
+DEFAULT_DOMAIN = os.getenv("GOOGLE_WORKSPACE_DOMAIN", "example.com")
 
 # Full OAuth scopes matching terraform-modules for maximum compatibility
 DEFAULT_SCOPES = [
@@ -41,9 +44,9 @@ DEFAULT_SCOPES = [
     "https://www.googleapis.com/auth/service.management",
 ]
 
-# GCP Security Project defaults
+# GCP Security Project defaults - override via environment for your org
 GCP_SECURITY_PROJECT = {
-    "id": "flipside-security-admin",
+    "id": os.getenv("GCP_SECURITY_PROJECT_ID", "security-admin"),
     "name": "Security Administration",
     "resource_labels": {
         "managed-by": "terraform",

@@ -25,7 +25,7 @@ Usage:
         pass
 """
 
-__version__ = "202511.11.0"
+__version__ = "202511.12.0"
 
 from vendor_connectors.aws import (
     AWSConnector,
@@ -53,6 +53,9 @@ from vendor_connectors.slack import SlackConnector
 from vendor_connectors.vault import VaultConnector
 from vendor_connectors.zoom import ZoomConnector
 
+# Meshy AI connector for 3D asset generation
+from vendor_connectors import meshy
+
 __all__ = [
     # AWS
     "AWSConnector",
@@ -77,4 +80,6 @@ __all__ = [
     "get_cloud_call_params",
     "get_aws_call_params",
     "get_google_call_params",
+    # Meshy AI (3D asset generation)
+    "meshy",
 ]

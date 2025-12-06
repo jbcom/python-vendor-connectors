@@ -1,6 +1,6 @@
 # Vendor Connectors
 
-Universal vendor connectors for the jbcom ecosystem, providing standardized access to cloud providers and third-party services.
+Universal vendor connectors for the jbcom ecosystem, providing standardized access to cloud providers, third-party services, and AI APIs.
 
 ## Features
 
@@ -10,12 +10,32 @@ Universal vendor connectors for the jbcom ecosystem, providing standardized acce
 - **Slack Connector**: Bot and app integrations with rate limiting
 - **Vault Connector**: HashiCorp Vault with Token and AppRole auth
 - **Zoom Connector**: Meeting and user management
+- **Meshy Connector**: Meshy AI 3D asset generation (text-to-3D, rigging, animation, retexture)
 - **VendorConnectors**: Cached public API with `get_*_client()` getters
 
 ## Installation
 
 ```bash
 pip install vendor-connectors
+```
+
+### Optional Extras
+
+```bash
+# For Meshy webhooks
+pip install vendor-connectors[webhooks]
+
+# For CrewAI agent integration
+pip install vendor-connectors[crewai]
+
+# For MCP server integration  
+pip install vendor-connectors[mcp]
+
+# For Meshy vector store/RAG
+pip install vendor-connectors[vector]
+
+# Everything
+pip install vendor-connectors[all]
 ```
 
 ## Usage
@@ -61,6 +81,25 @@ slack = SlackConnector(
 slack.send_message("general", "Hello from vendor-connectors!")
 ```
 
+### Meshy AI (3D Asset Generation)
+
+```python
+from vendor_connectors import meshy
+
+# Generate a 3D model
+model = meshy.text3d.generate("a medieval sword with ornate handle")
+print(model.model_urls.glb)
+
+# Rig it for animation
+rigged = meshy.rigging.rig(model.id)
+
+# Apply an animation (678 available)
+animated = meshy.animate.apply(rigged.id, animation_id=0)  # Idle
+
+# Or retexture it
+gold = meshy.retexture.apply(model.id, "golden with embedded gems")
+```
+
 ## Architecture
 
 All connectors extend `DirectedInputsClass` from the jbcom ecosystem:
@@ -89,6 +128,7 @@ The `VendorConnectors` class provides:
 | `VAULT_TOKEN` | Vault authentication token |
 | `VAULT_ROLE_ID` / `VAULT_SECRET_ID` | AppRole credentials |
 | `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` / `ZOOM_ACCOUNT_ID` | Zoom OAuth |
+| `MESHY_API_KEY` | Meshy AI API key |
 
 ## Part of jbcom Ecosystem
 
@@ -96,6 +136,3 @@ This package is part of the jbcom Python library ecosystem:
 - [extended-data-types](https://pypi.org/project/extended-data-types/) - Foundation utilities
 - [lifecyclelogging](https://pypi.org/project/lifecyclelogging/) - Structured logging
 - [directed-inputs-class](https://pypi.org/project/directed-inputs-class/) - Input handling
-
-
-# Release trigger
