@@ -8,7 +8,7 @@ Uses sqlite-vec for vector similarity search, falling back to
 standard SQLite if vectors aren't needed.
 
 Usage:
-    from mesh_toolkit.persistence.vector_store import VectorStore
+    from vendor_connectors.meshy.persistence.vector_store import VectorStore
 
     store = VectorStore("assets.db")
 
@@ -107,7 +107,7 @@ class VectorStore:
 
     def __init__(
         self,
-        db_path: str | Path = "mesh_toolkit.db",
+        db_path: str | Path = "vendor_connectors.meshy.db",
         embedding_dim: int = DEFAULT_EMBEDDING_DIM,
     ):
         self.db_path = Path(db_path)
@@ -466,14 +466,11 @@ class VectorStore:
 
         if project:
             cursor = conn.execute(
-                "SELECT * FROM generations "
-                "WHERE status IN ('pending', 'in_progress') AND project = ?",
+                "SELECT * FROM generations WHERE status IN ('pending', 'in_progress') AND project = ?",
                 (project,),
             )
         else:
-            cursor = conn.execute(
-                "SELECT * FROM generations WHERE status IN ('pending', 'in_progress')"
-            )
+            cursor = conn.execute("SELECT * FROM generations WHERE status IN ('pending', 'in_progress')")
 
         return [self._row_to_record(row) for row in cursor]
 

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "vendor-connectors"
 version = "202511.12.0"
 description = "Universal vendor connectors with transparent secret management, including Meshy AI for 3D assets"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 readme = "README.md"
 keywords = ["aws", "gcp", "github", "slack", "vault", "zoom", "meshy", "3d", "connectors"]
@@ -17,7 +17,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -26,9 +25,9 @@ classifiers = [
 ]
 dependencies = [
     # jbcom ecosystem
-    "extended-data-types>=2025.11.0",
-    "lifecyclelogging>=2025.11.0",
-    "directed-inputs-class>=2025.11.0",
+    "extended-data-types>=2025.11.164",
+    "lifecyclelogging>=202511.3.0",
+    "directed-inputs-class>=202511.3.0",
     # Cloud providers
     "boto3>=1.34.0",
     "google-api-python-client>=2.0.0",
