@@ -27,7 +27,7 @@ Usage:
 
 from __future__ import annotations
 
-__version__ = "202511.12.0"
+__version__ = "0.1.0"
 
 # Meshy AI connector for 3D asset generation
 from vendor_connectors import meshy
