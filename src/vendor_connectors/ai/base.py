@@ -359,7 +359,7 @@ class ToolRegistry:
 
     def __init__(self):
         self._tools: dict[str, ToolDefinition] = {}
-        self._lock = threading.RLock()
+        self._lock = threading.Lock()
 
     def register(self, definition: ToolDefinition) -> None:
         """Register a tool definition."""
