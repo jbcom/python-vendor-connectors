@@ -197,6 +197,13 @@ class ToolRegistry:
     """
 
     def __init__(self):
+        """
+        Initialize the tool registry.
+
+        Attributes:
+            _tools: Dictionary mapping tool names to their ToolDefinition objects.
+            _lock: Re-entrant lock to ensure thread-safe access to the registry.
+        """
         self._tools: dict[str, ToolDefinition] = {}
         self._lock = threading.RLock()
 
