@@ -272,9 +272,10 @@ class TestCloudKMS:
     def test_create_kms_key(self, google_connector):
         """Test creating a crypto key."""
         mock_service = MagicMock()
-        mock_keys = (
-            mock_service.projects.return_value.locations.return_value.keyRings.return_value.cryptoKeys.return_value
-        )
+        mock_projects = mock_service.projects.return_value
+        mock_locations = mock_projects.locations.return_value
+        mock_keyrings = mock_locations.keyRings.return_value
+        mock_keys = mock_keyrings.cryptoKeys.return_value
         mock_keys.create.return_value.execute.return_value = {
             "name": "projects/test-project/locations/us/keyRings/kr1/cryptoKeys/new-key"
         }
