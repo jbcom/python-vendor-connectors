@@ -95,7 +95,7 @@ jobs:
       - name: Create PR for main branch updates
         if: (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && steps.check_changes.outputs.has_changes == 'true'
         run: |
-          BRANCH_NAME="chore/sync-mesh-animations-$(date +%Y%m%d)"
+          BRANCH_NAME="chore/sync-mesh-animations-$(date +%Y%m%d-%H%M%S)"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git checkout -b "$BRANCH_NAME"
