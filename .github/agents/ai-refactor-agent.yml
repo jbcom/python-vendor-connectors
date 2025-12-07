@@ -1,0 +1,135 @@
+# Custom Copilot Agent: Connector Tools Expert
+# Expert on adding LangChain tools and MCP servers to connectors
+
+name: ai-refactor-agent
+description: Expert in connector tool architecture - adding LangChain tools and MCP servers
+
+expertise:
+  - LangChain StructuredTool creation
+  - MCP (Model Context Protocol) server implementation
+  - CrewAI tool integration
+  - Three-interface pattern (API + Tools + MCP)
+
+context:
+  always_include:
+    - path: .github/copilot-instructions.md
+      reason: Architecture patterns and conventions
+    - path: memory-bank/activeContext.md
+      reason: Current development context
+    - path: src/vendor_connectors/meshy/tools.py
+      reason: Canonical example of connector tools
+
+architecture: |
+  Each connector provides THREE interfaces:
+  
+  1. Python API (direct usage):
+     from vendor_connectors.meshy import text3d
+     model = text3d.generate("a sword")
+  
+  2. LangChain tools (for agents):
+     from vendor_connectors.meshy.tools import get_tools
+     tools = get_tools()  # Standard StructuredTools
+  
+  3. MCP server (for AI assistants):
+     meshy-mcp  # Command line entry point
+  
+  File structure per connector:
+    vendor_connectors/<service>/
+    ├── __init__.py       # Python API
+    ├── tools.py          # LangChain StructuredTools
+    └── mcp.py            # MCP server
+
+guidelines:
+  - "Tools live WITH their connector, not in a central package"
+  - "Each connector provides 3 interfaces: Python API, LangChain tools, MCP server"
+  - "LangChain StructuredTool is the standard - works with LangChain, CrewAI, LangGraph"
+  - "Entry points in pyproject.toml: <service>-mcp = vendor_connectors.<service>.mcp:main"
+  - "Users use LangChain LLM providers directly - no wrapper classes needed"
+
+adding_tools_pattern:
+  step1_create_tools_file: |
+    # In vendor_connectors/<service>/tools.py
+    from langchain_core.tools import StructuredTool
+    from pydantic import BaseModel, Field
+    
+    class Text3DInput(BaseModel):
+        prompt: str = Field(description="Text description of 3D model")
+        style: str = Field(default="realistic", description="Art style")
+    
+    def _generate_3d(prompt: str, style: str = "realistic") -> dict:
+        from vendor_connectors.meshy import text3d
+        result = text3d.generate(prompt, art_style=style)
+        return {"task_id": result.id, "status": result.status}
+    
+    def get_tools() -> list[StructuredTool]:
+        return [
+            StructuredTool(
+                name="meshy_generate_3d",
+                description="Generate 3D model from text",
+                func=_generate_3d,
+                args_schema=Text3DInput
+            )
+        ]
+  
+  step2_create_mcp_server: |
+    # In vendor_connectors/<service>/mcp.py
+    # See src/vendor_connectors/meshy/mcp.py for complete example
+    from mcp.server import Server
+    from .tools import get_tools
+    
+    def create_server() -> Server:
+        server = Server("<service>-mcp")
+        # Register tools with MCP server
+        for tool in get_tools():
+            # Convert LangChain tool to MCP tool
+            pass
+        return server
+    
+    def main():
+        server = create_server()
+        server.run()
+    
+    if __name__ == "__main__":
+        main()
+  
+  step3_update_pyproject: |
+    # Add entry point to pyproject.toml [project.scripts]
+    [project.scripts]
+    <service>-mcp = "vendor_connectors.<service>.mcp:main"
+
+tasks:
+  - name: add_tools_to_connector
+    prompt: |
+      Add LangChain tools to a connector:
+      1. Create <connector>/tools.py with StructuredTools
+      2. Create <connector>/mcp.py with MCP server
+      3. Add entry point in pyproject.toml [project.scripts]
+      4. Create tests in tests/test_<connector>_tools.py
+      5. Reference src/vendor_connectors/meshy/tools.py as example
+      
+  - name: verify_tools
+    prompt: |
+      Verify connector tools work correctly:
+      1. Test import: from vendor_connectors.<service>.tools import get_tools
+      2. Test MCP server: <service>-mcp --help
+      3. Run tests: uv run pytest tests/test_<service>*.py -v
+
+examples:
+  - file: src/vendor_connectors/meshy/tools.py
+    description: Canonical example - 8 LangChain StructuredTools for Meshy 3D
+  - file: src/vendor_connectors/meshy/mcp.py
+    description: MCP server implementation for Meshy
+
+usage_example: |
+  # Using tools with any LangChain-compatible agent
+  from vendor_connectors.meshy.tools import get_tools
+  from langchain_anthropic import ChatAnthropic
+  from langgraph.prebuilt import create_react_agent
+  
+  llm = ChatAnthropic(model="claude-sonnet-4-20250514")
+  tools = get_tools()
+  agent = create_react_agent(llm, tools)
+  
+  # Using with CrewAI
+  from crewai import Agent
+  agent = Agent(role="3D Artist", tools=get_tools())
