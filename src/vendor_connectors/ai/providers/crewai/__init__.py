@@ -1,4 +1,4 @@
-"""CrewAI tool provider for mesh-toolkit.
+"""CrewAI tool provider for vendor-connectors.
 
 This module provides CrewAI-compatible tools for 3D asset generation.
 
@@ -16,8 +16,11 @@ Usage:
         ...
     )
 
+    # You can also import specific tool classes for granular control:
+    from vendor_connectors.ai.providers.crewai import Text3DGenerateTool, ApplyAnimationTool
+
 Requirements:
-    pip install mesh-toolkit[crewai]
+    pip install vendor-connectors[crewai]
 """
 
 from __future__ import annotations
