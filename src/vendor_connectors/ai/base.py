@@ -205,7 +205,7 @@ class ToolRegistry:
             _lock: Re-entrant lock to ensure thread-safe access to the registry.
         """
         self._tools: dict[str, ToolDefinition] = {}
-        self._lock = threading.RLock()
+        self._lock = threading.Lock()
 
     def register(self, definition: ToolDefinition) -> None:
         """Register a tool definition."""

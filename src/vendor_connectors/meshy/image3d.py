@@ -23,7 +23,10 @@ def create(request: Image3DRequest) -> str:
         version="v2",
         json=request.model_dump(exclude_none=True),
     )
-    return response.json().get("result")
+    data = response.json()
+    if "result" not in data:
+        raise RuntimeError(f"Unexpected API response: missing 'result' key. Response: {data}")
+    return data["result"]
 
 
 def get(task_id: str) -> Image3DResult:
@@ -40,7 +43,10 @@ def refine(task_id: str) -> str:
         version="v2",
         json={},
     )
-    return response.json().get("result")
+    data = response.json()
+    if "result" not in data:
+        raise RuntimeError(f"Unexpected API response: missing 'result' key. Response: {data}")
+    return data["result"]
 
 
 def poll(task_id: str, interval: float = 5.0, timeout: float = 600.0) -> Image3DResult:
