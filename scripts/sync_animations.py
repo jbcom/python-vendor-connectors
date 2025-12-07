@@ -122,8 +122,7 @@ def parse_animations_from_html(html: str) -> list[dict]:
         for script in scripts:
             text = script.get_text()
             # Look for animation data patterns
-            text_lower = text.lower()
-            if "animation" in text_lower and "id" in text_lower:
+            if re.search(r'animation', text, re.IGNORECASE) and re.search(r'id', text, re.IGNORECASE):
                 # Try to extract JSON objects robustly
                 decoder = json.JSONDecoder()
                 idx = 0
