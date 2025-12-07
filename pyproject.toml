@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vendor-connectors"
-version = "0.1.0"
+version = "0.1.1"
 description = "Universal vendor connectors with transparent secret management, including Meshy AI for 3D assets"
 requires-python = ">=3.10"
 license = { text = "MIT" }
