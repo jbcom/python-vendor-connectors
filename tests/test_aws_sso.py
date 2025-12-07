@@ -237,7 +237,7 @@ class TestSSOGroups:
         # Mock list_group_memberships to simulate paginated responses and test loop termination
         mock_identitystore.list_group_memberships.side_effect = [
             {"GroupMemberships": [{"GroupId": "group-1", "MemberId": {"UserId": "user-1"}}], "NextToken": "token-1"},
-            {"GroupMemberships": []}
+            {"GroupMemberships": []},
         ]
 
         def get_client(client_name, **kwargs):
