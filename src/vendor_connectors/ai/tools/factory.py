@@ -118,8 +118,9 @@ def tool_from_method(
         is_required = param.default == inspect.Parameter.empty
 
         # Create ToolParameter with extracted information
-        # Note: Parameter descriptions are currently basic. Future enhancement could
-        # parse docstrings to extract detailed parameter descriptions (Args section).
+        # Current: Uses generic "Parameter: {name}" description
+        # Future enhancement: Parse method docstring's "Args:" section to extract
+        # detailed descriptions like "repo_name: The GitHub repository name (owner/repo)"
         parameters[param_name] = ToolParameter(
             name=param_name,
             description=f"Parameter: {param_name}",
