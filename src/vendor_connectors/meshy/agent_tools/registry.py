@@ -146,7 +146,7 @@ def list_providers() -> list[str]:
         List of provider names (includes both registered and loadable)
     """
     # Known providers that can be loaded
-    known = {"crewai", "mcp"}
+    known = {"crewai", "mcp", "strands"}
 
     with _registry_lock:
         registered = set(_registry.keys())
@@ -172,6 +172,10 @@ def _lazy_load_provider(name: str) -> BaseToolProvider | None:
             from vendor_connectors.meshy.agent_tools.mcp import MCPToolProvider
 
             return MCPToolProvider()
+        elif name == "strands":
+            from vendor_connectors.meshy.agent_tools.strands import StrandsToolProvider
+
+            return StrandsToolProvider()
     except ImportError:
         # Provider dependencies not installed
         return None
