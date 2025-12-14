@@ -207,17 +207,17 @@ class AIConnector:
             for the duration of this call using a context manager to avoid
             global environment pollution.
         """
+        if not use_tools or len(self._registry) == 0:
+            return self.chat(message, system_prompt=system_prompt)
+
+        # Get filtered tools
+        tool_defs = self._registry.get_tools(categories=categories, names=tool_names)
+
+        if not tool_defs:
+            return self.chat(message, system_prompt=system_prompt)
+
+        # Convert to LangChain tools with bound instances - wrap with LangSmith context
         with self._langsmith_context():
-            if not use_tools or len(self._registry) == 0:
-                return self._provider.chat(message, system_prompt=system_prompt)
-
-            # Get filtered tools
-            tool_defs = self._registry.get_tools(categories=categories, names=tool_names)
-
-            if not tool_defs:
-                return self._provider.chat(message, system_prompt=system_prompt)
-
-            # Convert to LangChain tools with bound instances
             lc_tools = []
             for tool_def in tool_defs:
                 instance = self._connector_instances.get(tool_def.category)

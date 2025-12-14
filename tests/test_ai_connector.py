@@ -198,7 +198,7 @@ class TestLangSmithContextManager:
             mock_provider_class.return_value = mock_provider_instance
             mock_get_provider.return_value = mock_provider_class
 
-            # Mock the chat method
+            # Mock the provider's chat method
             from vendor_connectors.ai.base import AIResponse
 
             mock_response = AIResponse(
