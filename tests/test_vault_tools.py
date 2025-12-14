@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Patch target for VaultConnector - must patch where it's defined
+# Patch target for VaultConnector - must patch where it's used (in tools.py), not where it's defined
 VAULT_CONNECTOR_PATCH = "vendor_connectors.vault.VaultConnector"
 
 
@@ -209,9 +209,13 @@ class TestGetTools:
         with pytest.raises(ValueError, match="Unknown framework"):
             get_tools(framework="invalid")
 
-    def test_get_tools_auto_no_frameworks(self):
+    @patch("vendor_connectors._compat.is_available")
+    def test_get_tools_auto_no_frameworks(self, mock_is_available):
         """Test get_tools with auto detection when no frameworks installed."""
         from vendor_connectors.vault.tools import get_tools
+
+        # Mock is_available to return False for all AI frameworks
+        mock_is_available.return_value = False
 
         # Without special frameworks, should default to strands
         tools = get_tools(framework="auto")
