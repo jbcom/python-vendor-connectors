@@ -55,7 +55,17 @@ class OllamaProvider(BaseLLMProvider):
         return "llama3.2"
 
     def _create_llm(self) -> Any:
-        """Create LangChain ChatOllama instance."""
+        """Create LangChain ChatOllama instance.
+
+        Returns:
+            ChatOllama instance.
+
+        Raises:
+            ImportError: If langchain-ollama is not installed.
+            AIParameterError: If parameters are invalid.
+            AINetworkError: If Ollama server is unreachable.
+            AIProviderError: For other provider-specific errors.
+        """
         try:
             from langchain_ollama import ChatOllama
         except ImportError as e:
@@ -64,9 +74,34 @@ class OllamaProvider(BaseLLMProvider):
                 "Install with: pip install vendor-connectors[ai-ollama]"
             ) from e
 
-        return ChatOllama(
-            model=self.model,
-            base_url=self.base_url,
-            temperature=self.temperature,
-            **self._kwargs,
+        from vendor_connectors.ai.exceptions import (
+            AINetworkError,
+            AIParameterError,
+            AIProviderError,
         )
+
+        # Validate temperature
+        if not 0.0 <= self.temperature <= 1.0:
+            raise AIParameterError(f"Temperature must be between 0.0 and 1.0, got {self.temperature}")
+
+        try:
+            return ChatOllama(
+                model=self.model,
+                base_url=self.base_url,
+                temperature=self.temperature,
+                **self._kwargs,
+            )
+        except Exception as e:
+            error_msg = str(e).lower()
+            if (
+                "connection" in error_msg
+                or "unreachable" in error_msg
+                or "refused" in error_msg
+                or "timeout" in error_msg
+            ):
+                raise AINetworkError(
+                    f"Failed to connect to Ollama server at {self.base_url}. Ensure Ollama is running: {e}"
+                ) from e
+            if "model" in error_msg or "invalid" in error_msg:
+                raise AIParameterError(f"Invalid parameters for Ollama provider: {e}") from e
+            raise AIProviderError(f"Failed to create Ollama provider: {e}") from e

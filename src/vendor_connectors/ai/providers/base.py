@@ -99,6 +99,12 @@ class BaseLLMProvider(ABC):
 
         Returns:
             AIResponse with the model's response.
+
+        Raises:
+            AIAuthenticationError: If authentication fails.
+            AINetworkError: If network connection fails.
+            AIRateLimitError: If rate limit is exceeded.
+            AIProviderError: For other provider-specific errors.
         """
         try:
             from langchain_core.messages import AIMessage as LCAIMessage
@@ -107,6 +113,13 @@ class BaseLLMProvider(ABC):
             raise ImportError(
                 "LangChain is required for AI providers. Install with: pip install vendor-connectors[ai]"
             ) from e
+
+        from vendor_connectors.ai.exceptions import (
+            AIAuthenticationError,
+            AINetworkError,
+            AIProviderError,
+            AIRateLimitError,
+        )
 
         messages = []
 
@@ -128,7 +141,27 @@ class BaseLLMProvider(ABC):
         if tools:
             llm = llm.bind_tools(tools)
 
-        response = llm.invoke(messages)
+        try:
+            response = llm.invoke(messages)
+        except Exception as e:
+            # Handle authentication errors
+            error_msg = str(e).lower()
+            if "auth" in error_msg or "api key" in error_msg or "unauthorized" in error_msg or "401" in error_msg:
+                raise AIAuthenticationError(f"Authentication failed: {e}") from e
+            # Handle rate limiting
+            if "rate limit" in error_msg or "429" in error_msg or "quota" in error_msg:
+                raise AIRateLimitError(f"Rate limit exceeded: {e}") from e
+            # Handle network errors
+            if (
+                "connection" in error_msg
+                or "timeout" in error_msg
+                or "network" in error_msg
+                or "dns" in error_msg
+                or "unreachable" in error_msg
+            ):
+                raise AINetworkError(f"Network error: {e}") from e
+            # Generic provider error for everything else
+            raise AIProviderError(f"Provider error during chat: {e}") from e
 
         return self._convert_response(response)
 
@@ -205,6 +238,12 @@ class BaseLLMProvider(ABC):
 
         Returns:
             AIResponse with the final result.
+
+        Raises:
+            AIAuthenticationError: If authentication fails.
+            AINetworkError: If network connection fails.
+            AIRateLimitError: If rate limit is exceeded.
+            AIProviderError: For other provider-specific errors.
         """
         try:
             from langgraph.prebuilt import create_react_agent
@@ -213,6 +252,13 @@ class BaseLLMProvider(ABC):
                 "LangGraph is required for tool execution. Install with: pip install vendor-connectors[ai]"
             ) from e
 
+        from vendor_connectors.ai.exceptions import (
+            AIAuthenticationError,
+            AINetworkError,
+            AIProviderError,
+            AIRateLimitError,
+        )
+
         agent = create_react_agent(self.llm, tools)
 
         messages = []
@@ -220,10 +266,30 @@ class BaseLLMProvider(ABC):
             messages.append(("system", system_prompt))
         messages.append(("user", message))
 
-        result = agent.invoke(
-            {"messages": messages},
-            {"recursion_limit": max_iterations},
-        )
+        try:
+            result = agent.invoke(
+                {"messages": messages},
+                {"recursion_limit": max_iterations},
+            )
+        except Exception as e:
+            # Handle authentication errors
+            error_msg = str(e).lower()
+            if "auth" in error_msg or "api key" in error_msg or "unauthorized" in error_msg or "401" in error_msg:
+                raise AIAuthenticationError(f"Authentication failed: {e}") from e
+            # Handle rate limiting
+            if "rate limit" in error_msg or "429" in error_msg or "quota" in error_msg:
+                raise AIRateLimitError(f"Rate limit exceeded: {e}") from e
+            # Handle network errors
+            if (
+                "connection" in error_msg
+                or "timeout" in error_msg
+                or "network" in error_msg
+                or "dns" in error_msg
+                or "unreachable" in error_msg
+            ):
+                raise AINetworkError(f"Network error: {e}") from e
+            # Generic provider error for everything else
+            raise AIProviderError(f"Provider error during tool invocation: {e}") from e
 
         # Get the last AI message from the result
         final_messages = result.get("messages", [])

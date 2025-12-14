@@ -37,7 +37,17 @@ class AnthropicProvider(BaseLLMProvider):
         return "claude-sonnet-4-20250514"
 
     def _create_llm(self) -> Any:
-        """Create LangChain ChatAnthropic instance."""
+        """Create LangChain ChatAnthropic instance.
+
+        Returns:
+            ChatAnthropic instance.
+
+        Raises:
+            ImportError: If langchain-anthropic is not installed.
+            AIAuthenticationError: If API key is missing.
+            AIParameterError: If parameters are invalid.
+            AIProviderError: For other provider-specific errors.
+        """
         try:
             from langchain_anthropic import ChatAnthropic
         except ImportError as e:
@@ -46,16 +56,36 @@ class AnthropicProvider(BaseLLMProvider):
                 "Install with: pip install vendor-connectors[ai-anthropic]"
             ) from e
 
+        from vendor_connectors.ai.exceptions import (
+            AIAuthenticationError,
+            AIParameterError,
+            AIProviderError,
+        )
+
         api_key = self.api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            raise ValueError(
+            raise AIAuthenticationError(
                 "Anthropic API key is required. Set ANTHROPIC_API_KEY environment variable or pass api_key parameter."
             )
 
-        return ChatAnthropic(
-            model=self.model,
-            api_key=api_key,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            **self._kwargs,
-        )
+        # Validate temperature
+        if not 0.0 <= self.temperature <= 1.0:
+            raise AIParameterError(f"Temperature must be between 0.0 and 1.0, got {self.temperature}")
+
+        # Validate max_tokens
+        if self.max_tokens <= 0:
+            raise AIParameterError(f"max_tokens must be positive, got {self.max_tokens}")
+
+        try:
+            return ChatAnthropic(
+                model=self.model,
+                api_key=api_key,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                **self._kwargs,
+            )
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "model" in error_msg or "invalid" in error_msg:
+                raise AIParameterError(f"Invalid parameters for Anthropic provider: {e}") from e
+            raise AIProviderError(f"Failed to create Anthropic provider: {e}") from e

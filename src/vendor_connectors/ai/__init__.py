@@ -52,6 +52,15 @@ from vendor_connectors.ai.base import (
     ToolParameter,
 )
 from vendor_connectors.ai.connector import AIConnector
+from vendor_connectors.ai.exceptions import (
+    AIAuthenticationError,
+    AIError,
+    AIModelError,
+    AINetworkError,
+    AIParameterError,
+    AIProviderError,
+    AIRateLimitError,
+)
 from vendor_connectors.ai.tools import ToolFactory, ToolRegistry
 
 __all__ = [
@@ -69,4 +78,12 @@ __all__ = [
     # Tools
     "ToolFactory",
     "ToolRegistry",
+    # Exceptions
+    "AIError",
+    "AIProviderError",
+    "AIAuthenticationError",
+    "AINetworkError",
+    "AIParameterError",
+    "AIRateLimitError",
+    "AIModelError",
 ]
