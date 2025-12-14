@@ -118,9 +118,11 @@ def tool_from_method(
         is_required = param.default == inspect.Parameter.empty
 
         # Create ToolParameter with extracted information
+        # Note: Parameter descriptions are currently basic. Future enhancement could
+        # parse docstrings to extract detailed parameter descriptions (Args section).
         parameters[param_name] = ToolParameter(
             name=param_name,
-            description=f"Parameter: {param_name}",  # Basic description, could be enhanced with docstring parsing
+            description=f"Parameter: {param_name}",
             type=param_type if isinstance(param_type, type) else str,
             required=is_required,
             default=None if param.default == inspect.Parameter.empty else param.default,

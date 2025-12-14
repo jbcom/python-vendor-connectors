@@ -215,9 +215,9 @@ response = ai.chat("Hello!")
 | Basic chat | ✅ `create_message()` | ✅ `chat()` |
 | System prompts | ✅ `system` param | ✅ `system_prompt` param |
 | Conversation history | ✅ Via messages list | ✅ Via `history` param |
-| Token counting | ✅ `count_tokens()` | ❌ Use anthropic connector |
-| Model listing | ✅ `list_models()` | ❌ Use anthropic connector |
-| Model info | ✅ `get_model()` | ❌ Use anthropic connector |
+| Token counting | ✅ `count_tokens()` | ❌ Use anthropic connector (not planned) |
+| Model listing | ✅ `list_models()` | ❌ Use anthropic connector (not planned) |
+| Model info | ✅ `get_model()` | ❌ Use anthropic connector (not planned) |
 | Agent execution | ✅ `execute_agent_task()` | ✅ `invoke()` with tools |
 | Tool calling | ❌ Manual | ✅ Auto-generated from connectors |
 | Multi-provider | ❌ Anthropic only | ✅ 5+ providers |
@@ -338,8 +338,9 @@ token_count = claude.count_tokens(
 )
 
 # Use AI sub-package for tool calling
+# Note: Connectors read credentials from environment variables (GITHUB_TOKEN, etc.)
 ai = AIConnector(provider="anthropic")
-github = GithubConnector()
+github = GithubConnector()  # Reads GITHUB_TOKEN from environment
 ai.register_connector_tools(github, ToolCategory.GITHUB)
 response = ai.invoke("List my repos", use_tools=True)
 ```

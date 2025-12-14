@@ -266,11 +266,13 @@ class BaseLLMProvider(ABC):
         tools: Optional[list] = None,
     ) -> AIResponse:
         """Execute a chat completion.
-        
-        Note: See actual implementation in ai/providers/base.py.
-        History conversion and response conversion are implemented inline."""
+
+        Note: This is design pseudocode. See actual implementation in
+        ai/providers/base.py. The actual implementation converts history
+        inline within the chat() method, and response conversion happens
+        via the _convert_response() method."""
         from langchain_core.messages import HumanMessage, SystemMessage, AIMessage as LCAIMessage
-        
+
         messages = []
         if system_prompt:
             messages.append(SystemMessage(content=system_prompt))
@@ -282,13 +284,13 @@ class BaseLLMProvider(ABC):
                 elif msg.role.value == "assistant":
                     messages.append(LCAIMessage(content=msg.content))
         messages.append(HumanMessage(content=message))
-        
+
         llm = self._llm
         if tools:
             llm = llm.bind_tools(tools)
-        
+
         response = llm.invoke(messages)
-        # Response conversion to AIResponse happens in _convert_response()
+        # Response conversion to AIResponse happens in _convert_response() method
         return self._convert_response(response)
     
     def invoke_with_tools(
