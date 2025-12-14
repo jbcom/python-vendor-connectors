@@ -1,25 +1,46 @@
-"""Tests for Slack AI tools."""
+"""Tests for Slack AI tools.
+
+Tests mock the SlackConnector to avoid live API calls and
+handle the slack_sdk optional dependency gracefully.
+"""
 
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Patch target for SlackConnector - must patch where it's imported
-SLACK_CONNECTOR_PATCH = "vendor_connectors.slack.SlackConnector"
+
+@pytest.fixture(autouse=True)
+def mock_slack_sdk():
+    """Mock slack_sdk module for all tests since it's an optional dependency."""
+    # Create mock modules
+    mock_slack_sdk = MagicMock()
+    mock_slack_sdk.errors = MagicMock()
+    mock_slack_sdk.errors.SlackApiError = Exception
+    mock_slack_sdk.web = MagicMock()
+    mock_slack_sdk.web.WebClient = MagicMock()
+
+    # Insert into sys.modules before importing vendor_connectors.slack
+    with patch.dict(sys.modules, {
+        "slack_sdk": mock_slack_sdk,
+        "slack_sdk.errors": mock_slack_sdk.errors,
+        "slack_sdk.web": mock_slack_sdk.web,
+    }):
+        yield mock_slack_sdk
 
 
 class TestSlackToolDefinitions:
     """Test tool definitions and metadata."""
 
-    def test_tool_definitions_exist(self):
+    def test_tool_definitions_exist(self, mock_slack_sdk):
         """Test that TOOL_DEFINITIONS is populated."""
         from vendor_connectors.slack.tools import TOOL_DEFINITIONS
 
         assert len(TOOL_DEFINITIONS) > 0
 
-    def test_all_tools_have_required_fields(self):
+    def test_all_tools_have_required_fields(self, mock_slack_sdk):
         """Test that all tools have name, description, and func."""
         from vendor_connectors.slack.tools import TOOL_DEFINITIONS
 
@@ -29,7 +50,7 @@ class TestSlackToolDefinitions:
             assert "func" in defn, f"Tool missing 'func': {defn}"
             assert callable(defn["func"]), f"Tool func not callable: {defn['name']}"
 
-    def test_tool_names_prefixed(self):
+    def test_tool_names_prefixed(self, mock_slack_sdk):
         """Test that all tool names are prefixed with 'slack_'."""
         from vendor_connectors.slack.tools import TOOL_DEFINITIONS
 
@@ -40,8 +61,7 @@ class TestSlackToolDefinitions:
 class TestListChannels:
     """Tests for list_channels tool."""
 
-    @patch(SLACK_CONNECTOR_PATCH)
-    def test_list_channels_basic(self, mock_connector_class):
+    def test_list_channels_basic(self, mock_slack_sdk):
         """Test basic list_channels functionality."""
         from vendor_connectors.slack.tools import list_channels
 
@@ -62,25 +82,24 @@ class TestListChannels:
                 "num_members": 38,
             },
         }
-        mock_connector_class.return_value = mock_connector
 
-        result = list_channels()
+        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+            result = list_channels()
 
         assert len(result) == 2
         assert result[0]["id"] == "C12345"
         assert result[0]["name"] == "general"
         assert result[0]["member_count"] == 42
 
-    @patch(SLACK_CONNECTOR_PATCH)
-    def test_list_channels_with_archived(self, mock_connector_class):
+    def test_list_channels_with_archived(self, mock_slack_sdk):
         """Test list_channels including archived."""
         from vendor_connectors.slack.tools import list_channels
 
         mock_connector = MagicMock()
         mock_connector.list_conversations.return_value = {}
-        mock_connector_class.return_value = mock_connector
 
-        list_channels(exclude_archived=False)
+        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+            list_channels(exclude_archived=False)
 
         mock_connector.list_conversations.assert_called_once()
         call_kwargs = mock_connector.list_conversations.call_args[1]
@@ -90,8 +109,7 @@ class TestListChannels:
 class TestListUsers:
     """Tests for list_users tool."""
 
-    @patch(SLACK_CONNECTOR_PATCH)
-    def test_list_users_basic(self, mock_connector_class):
+    def test_list_users_basic(self, mock_slack_sdk):
         """Test basic list_users functionality."""
         from vendor_connectors.slack.tools import list_users
 
@@ -112,9 +130,9 @@ class TestListUsers:
                 "is_bot": False,
             },
         }
-        mock_connector_class.return_value = mock_connector
 
-        result = list_users()
+        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+            result = list_users()
 
         assert len(result) == 2
         assert result[0]["id"] == "U12345"
@@ -122,16 +140,15 @@ class TestListUsers:
         assert result[0]["email"] == "john@example.com"
         assert result[0]["is_admin"] is True
 
-    @patch(SLACK_CONNECTOR_PATCH)
-    def test_list_users_with_bots(self, mock_connector_class):
+    def test_list_users_with_bots(self, mock_slack_sdk):
         """Test list_users including bots."""
         from vendor_connectors.slack.tools import list_users
 
         mock_connector = MagicMock()
         mock_connector.list_users.return_value = {}
-        mock_connector_class.return_value = mock_connector
 
-        list_users(include_bots=True)
+        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+            list_users(include_bots=True)
 
         mock_connector.list_users.assert_called_once()
         call_kwargs = mock_connector.list_users.call_args[1]
@@ -141,32 +158,30 @@ class TestListUsers:
 class TestSendMessage:
     """Tests for send_message tool."""
 
-    @patch(SLACK_CONNECTOR_PATCH)
-    def test_send_message_basic(self, mock_connector_class):
+    def test_send_message_basic(self, mock_slack_sdk):
         """Test basic send_message functionality."""
         from vendor_connectors.slack.tools import send_message
 
         mock_connector = MagicMock()
         mock_connector.send_message.return_value = "1234567890.123456"
-        mock_connector_class.return_value = mock_connector
 
-        result = send_message(channel="general", text="Hello, world!")
+        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+            result = send_message(channel="general", text="Hello, world!")
 
         assert result["channel"] == "general"
         assert result["text"] == "Hello, world!"
         assert result["timestamp"] == "1234567890.123456"
         assert result["status"] == "sent"
 
-    @patch(SLACK_CONNECTOR_PATCH)
-    def test_send_message_with_thread(self, mock_connector_class):
+    def test_send_message_with_thread(self, mock_slack_sdk):
         """Test send_message with thread_id."""
         from vendor_connectors.slack.tools import send_message
 
         mock_connector = MagicMock()
         mock_connector.send_message.return_value = "1234567890.123457"
-        mock_connector_class.return_value = mock_connector
 
-        send_message(channel="general", text="Reply", thread_id="1234567890.123456")
+        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+            send_message(channel="general", text="Reply", thread_id="1234567890.123456")
 
         mock_connector.send_message.assert_called_once()
         call_kwargs = mock_connector.send_message.call_args[1]
@@ -176,8 +191,7 @@ class TestSendMessage:
 class TestGetChannelHistory:
     """Tests for get_channel_history tool."""
 
-    @patch(SLACK_CONNECTOR_PATCH)
-    def test_get_channel_history_basic(self, mock_connector_class):
+    def test_get_channel_history_basic(self, mock_slack_sdk):
         """Test basic get_channel_history functionality."""
         from vendor_connectors.slack.tools import get_channel_history
 
@@ -201,25 +215,24 @@ class TestGetChannelHistory:
                 },
             ]
         }
-        mock_connector_class.return_value = mock_connector
 
-        result = get_channel_history(channel="general")
+        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+            result = get_channel_history(channel="general")
 
         assert len(result) == 2
         assert result[0]["timestamp"] == "1234567890.123456"
         assert result[0]["user"] == "U12345"
         assert result[0]["text"] == "Hello, world!"
 
-    @patch(SLACK_CONNECTOR_PATCH)
-    def test_get_channel_history_channel_not_found(self, mock_connector_class):
+    def test_get_channel_history_channel_not_found(self, mock_slack_sdk):
         """Test get_channel_history with non-existent channel."""
         from vendor_connectors.slack.tools import get_channel_history
 
         mock_connector = MagicMock()
         mock_connector.list_conversations.return_value = {}
-        mock_connector_class.return_value = mock_connector
 
-        result = get_channel_history(channel="nonexistent")
+        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+            result = get_channel_history(channel="nonexistent")
 
         assert len(result) == 0
 
@@ -227,7 +240,7 @@ class TestGetChannelHistory:
 class TestGetTools:
     """Tests for get_tools function."""
 
-    def test_get_strands_tools(self):
+    def test_get_strands_tools(self, mock_slack_sdk):
         """Test getting tools as plain functions."""
         from vendor_connectors.slack.tools import get_strands_tools
 
@@ -235,19 +248,17 @@ class TestGetTools:
         assert len(tools) > 0
         assert all(callable(t) for t in tools)
 
-    @patch("vendor_connectors._compat.is_available")
-    def test_get_tools_auto_fallback(self, mock_is_available):
+    def test_get_tools_auto_fallback(self, mock_slack_sdk):
         """Test auto-detection falls back to strands/functions."""
         from vendor_connectors.slack.tools import get_tools
 
-        mock_is_available.return_value = False
-
-        tools = get_tools(framework="auto")
+        with patch("vendor_connectors._compat.is_available", return_value=False):
+            tools = get_tools(framework="auto")
 
         assert len(tools) > 0
         assert all(callable(t) for t in tools)
 
-    def test_get_tools_invalid_framework(self):
+    def test_get_tools_invalid_framework(self, mock_slack_sdk):
         """Test invalid framework raises error."""
         from vendor_connectors.slack.tools import get_tools
 
