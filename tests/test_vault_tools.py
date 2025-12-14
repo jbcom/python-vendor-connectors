@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Patch target for VaultConnector - must patch where it's imported
+# Patch target for VaultConnector - must patch where it's defined
 VAULT_CONNECTOR_PATCH = "vendor_connectors.vault.VaultConnector"
 
 
