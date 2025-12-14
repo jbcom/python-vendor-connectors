@@ -4,7 +4,29 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from vendor_connectors.connectors import VendorConnectors
+
+
+# Helper to check if optional dependencies are available
+def _has_module(name: str) -> bool:
+    """Check if a module can be imported."""
+    try:
+        __import__(name)
+        return True
+    except ImportError:
+        return False
+
+
+# Skip markers for optional dependencies
+requires_boto3 = pytest.mark.skipif(not _has_module("boto3"), reason="boto3 not installed")
+requires_google = pytest.mark.skipif(
+    not _has_module("googleapiclient"), reason="google-api-python-client not installed"
+)
+requires_github = pytest.mark.skipif(not _has_module("github"), reason="PyGithub not installed")
+requires_slack = pytest.mark.skipif(not _has_module("slack_sdk"), reason="slack-sdk not installed")
+requires_vault = pytest.mark.skipif(not _has_module("hvac"), reason="hvac not installed")
 
 
 class TestVendorConnectors:
@@ -49,7 +71,8 @@ class TestVendorConnectors:
         cached = vc._get_cached_client("test_type", param="different")
         assert cached is None
 
-    @patch("vendor_connectors.connectors.AWSConnector")
+    @requires_boto3
+    @patch("vendor_connectors.aws.AWSConnector")
     def test_get_aws_connector(self, mock_aws):
         """Test getting AWS connector."""
         vc = VendorConnectors()
@@ -61,7 +84,8 @@ class TestVendorConnectors:
         assert result == mock_connector
         mock_aws.assert_called_once()
 
-    @patch("vendor_connectors.connectors.AWSConnector")
+    @requires_boto3
+    @patch("vendor_connectors.aws.AWSConnector")
     def test_get_aws_connector_caching(self, mock_aws):
         """Test AWS connector caching."""
         vc = VendorConnectors()
@@ -77,7 +101,8 @@ class TestVendorConnectors:
         # Should only create connector once
         mock_aws.assert_called_once()
 
-    @patch("vendor_connectors.connectors.AWSConnector")
+    @requires_boto3
+    @patch("vendor_connectors.aws.AWSConnector")
     def test_get_aws_client(self, mock_aws):
         """Test getting AWS client."""
         vc = VendorConnectors()
@@ -91,7 +116,8 @@ class TestVendorConnectors:
         assert result == mock_client
         mock_connector.get_aws_client.assert_called_once()
 
-    @patch("vendor_connectors.connectors.AWSConnector")
+    @requires_boto3
+    @patch("vendor_connectors.aws.AWSConnector")
     def test_get_aws_resource(self, mock_aws):
         """Test getting AWS resource."""
         vc = VendorConnectors()
@@ -105,7 +131,8 @@ class TestVendorConnectors:
         assert result == mock_resource
         mock_connector.get_aws_resource.assert_called_once()
 
-    @patch("vendor_connectors.connectors.GoogleConnector")
+    @requires_google
+    @patch("vendor_connectors.google.GoogleConnector")
     def test_get_google_client(self, mock_google):
         """Test getting Google client."""
         vc = VendorConnectors(
@@ -120,7 +147,8 @@ class TestVendorConnectors:
 
         assert result == mock_connector
 
-    @patch("vendor_connectors.connectors.GithubConnector")
+    @requires_github
+    @patch("vendor_connectors.github.GithubConnector")
     def test_get_github_client(self, mock_github):
         """Test getting GitHub client."""
         vc = VendorConnectors(inputs={"GITHUB_OWNER": "test-org", "GITHUB_TOKEN": "ghp_test123"})
@@ -131,7 +159,8 @@ class TestVendorConnectors:
 
         assert result == mock_connector
 
-    @patch("vendor_connectors.connectors.SlackConnector")
+    @requires_slack
+    @patch("vendor_connectors.slack.SlackConnector")
     def test_get_slack_client(self, mock_slack):
         """Test getting Slack client."""
         vc = VendorConnectors(inputs={"SLACK_TOKEN": "xoxp-test123", "SLACK_BOT_TOKEN": "xoxb-test123"})
@@ -142,7 +171,8 @@ class TestVendorConnectors:
 
         assert result == mock_connector
 
-    @patch("vendor_connectors.connectors.VaultConnector")
+    @requires_vault
+    @patch("vendor_connectors.vault.VaultConnector")
     def test_get_vault_connector(self, mock_vault):
         """Test getting Vault connector."""
         vc = VendorConnectors()
@@ -170,7 +200,8 @@ class TestVendorConnectors:
 
         assert result == mock_connector
 
-    @patch("vendor_connectors.connectors.VaultConnector")
+    @requires_vault
+    @patch("vendor_connectors.vault.VaultConnector")
     def test_get_vault_client(self, mock_vault):
         """Test getting Vault client."""
         vc = VendorConnectors()
@@ -183,11 +214,13 @@ class TestVendorConnectors:
 
         assert result == mock_client
 
+    @requires_boto3
+    @requires_slack
     def test_multiple_connector_types_cached_separately(self):
         """Test that different connector types are cached separately."""
         with (
-            patch("vendor_connectors.connectors.AWSConnector") as mock_aws,
-            patch("vendor_connectors.connectors.SlackConnector") as mock_slack,
+            patch("vendor_connectors.aws.AWSConnector") as mock_aws,
+            patch("vendor_connectors.slack.SlackConnector") as mock_slack,
         ):
             vc = VendorConnectors(inputs={"SLACK_TOKEN": "xoxp-test123", "SLACK_BOT_TOKEN": "xoxb-test123"})
             mock_aws_connector = MagicMock()
@@ -206,3 +239,18 @@ class TestVendorConnectors:
 
             # But they should be different objects
             assert aws1 != slack1
+
+    def test_get_aws_connector_without_boto3(self):
+        """Test that get_aws_connector raises ImportError without boto3."""
+        # This test runs even without boto3 to verify error handling
+        vc = VendorConnectors()
+        if not _has_module("boto3"):
+            with pytest.raises(ImportError, match="boto3"):
+                vc.get_aws_connector()
+
+    def test_get_github_client_without_pygithub(self):
+        """Test that get_github_client raises ImportError without PyGithub."""
+        vc = VendorConnectors(inputs={"GITHUB_OWNER": "test-org", "GITHUB_TOKEN": "ghp_test123"})
+        if not _has_module("github"):
+            with pytest.raises(ImportError, match="PyGithub"):
+                vc.get_github_client()

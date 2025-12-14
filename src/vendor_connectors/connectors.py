@@ -9,18 +9,23 @@ from directed_inputs_class import DirectedInputsClass
 from extended_data_types import get_default_dict, get_unique_signature, make_hashable
 from lifecyclelogging import Logging
 
-from vendor_connectors.aws import AWSConnector
-from vendor_connectors.github import GithubConnector
-from vendor_connectors.google import GoogleConnector
-from vendor_connectors.slack import SlackConnector
-from vendor_connectors.vault import VaultConnector
+# Import zoom directly (no extra deps)
 from vendor_connectors.zoom import ZoomConnector
+
+# Optional connectors - imported lazily when methods are called
+# This allows the package to be imported without all vendor SDKs installed
 
 if TYPE_CHECKING:
     import boto3
     import hvac
     from boto3.resources.base import ServiceResource
     from botocore.config import Config
+
+    from vendor_connectors.aws import AWSConnector
+    from vendor_connectors.github import GithubConnector
+    from vendor_connectors.google import GoogleConnector
+    from vendor_connectors.slack import SlackConnector
+    from vendor_connectors.vault import VaultConnector
 
 
 class VendorConnectors(DirectedInputsClass):
@@ -78,7 +83,15 @@ class VendorConnectors(DirectedInputsClass):
         self,
         execution_role_arn: Optional[str] = None,
     ) -> AWSConnector:
-        """Get a cached AWSConnector instance."""
+        """Get a cached AWSConnector instance.
+
+        Requires: pip install vendor-connectors[aws]
+        """
+        try:
+            from vendor_connectors.aws import AWSConnector
+        except ImportError as e:
+            raise ImportError("AWS connector requires boto3. Install with: pip install vendor-connectors[aws]") from e
+
         execution_role_arn = execution_role_arn or self.get_input("EXECUTION_ROLE_ARN", required=False)
 
         cached = self._get_cached_client("aws_connector", execution_role_arn=execution_role_arn)
@@ -210,7 +223,17 @@ class VendorConnectors(DirectedInputsClass):
         github_branch: Optional[str] = None,
         github_token: Optional[str] = None,
     ) -> GithubConnector:
-        """Get a cached GithubConnector instance."""
+        """Get a cached GithubConnector instance.
+
+        Requires: pip install vendor-connectors[github]
+        """
+        try:
+            from vendor_connectors.github import GithubConnector
+        except ImportError as e:
+            raise ImportError(
+                "GitHub connector requires PyGithub. Install with: pip install vendor-connectors[github]"
+            ) from e
+
         github_owner = github_owner or self.get_input("GITHUB_OWNER", required=True)
         github_repo = github_repo or self.get_input("GITHUB_REPO", required=False)
         github_branch = github_branch or self.get_input("GITHUB_BRANCH", required=False)
@@ -254,7 +277,18 @@ class VendorConnectors(DirectedInputsClass):
         scopes: Optional[list[str]] = None,
         subject: Optional[str] = None,
     ) -> GoogleConnector:
-        """Get a cached GoogleConnector instance."""
+        """Get a cached GoogleConnector instance.
+
+        Requires: pip install vendor-connectors[google]
+        """
+        try:
+            from vendor_connectors.google import GoogleConnector
+        except ImportError as e:
+            raise ImportError(
+                "Google connector requires google-api-python-client. "
+                "Install with: pip install vendor-connectors[google]"
+            ) from e
+
         service_account_info = service_account_info or self.get_input("GOOGLE_SERVICE_ACCOUNT", required=True)
 
         # For caching, use a hash to avoid exposing sensitive data
@@ -292,7 +326,17 @@ class VendorConnectors(DirectedInputsClass):
         token: Optional[str] = None,
         bot_token: Optional[str] = None,
     ) -> SlackConnector:
-        """Get a cached SlackConnector instance."""
+        """Get a cached SlackConnector instance.
+
+        Requires: pip install vendor-connectors[slack]
+        """
+        try:
+            from vendor_connectors.slack import SlackConnector
+        except ImportError as e:
+            raise ImportError(
+                "Slack connector requires slack_sdk. Install with: pip install vendor-connectors[slack]"
+            ) from e
+
         token = token or self.get_input("SLACK_TOKEN", required=True)
         bot_token = bot_token or self.get_input("SLACK_BOT_TOKEN", required=True)
 
@@ -319,7 +363,17 @@ class VendorConnectors(DirectedInputsClass):
         vault_namespace: Optional[str] = None,
         vault_token: Optional[str] = None,
     ) -> hvac.Client:
-        """Get a cached Vault hvac.Client instance."""
+        """Get a cached Vault hvac.Client instance.
+
+        Requires: pip install vendor-connectors[vault]
+        """
+        try:
+            from vendor_connectors.vault import VaultConnector
+        except ImportError as e:
+            raise ImportError(
+                "Vault connector requires hvac. Install with: pip install vendor-connectors[vault]"
+            ) from e
+
         vault_url = vault_url or self.get_input("VAULT_ADDR", required=False)
         vault_namespace = vault_namespace or self.get_input("VAULT_NAMESPACE", required=False)
         vault_token = vault_token or self.get_input("VAULT_TOKEN", required=False)
@@ -356,7 +410,17 @@ class VendorConnectors(DirectedInputsClass):
         vault_namespace: Optional[str] = None,
         vault_token: Optional[str] = None,
     ) -> VaultConnector:
-        """Get a cached VaultConnector instance."""
+        """Get a cached VaultConnector instance.
+
+        Requires: pip install vendor-connectors[vault]
+        """
+        try:
+            from vendor_connectors.vault import VaultConnector
+        except ImportError as e:
+            raise ImportError(
+                "Vault connector requires hvac. Install with: pip install vendor-connectors[vault]"
+            ) from e
+
         vault_url = vault_url or self.get_input("VAULT_ADDR", required=False)
         vault_namespace = vault_namespace or self.get_input("VAULT_NAMESPACE", required=False)
         vault_token = vault_token or self.get_input("VAULT_TOKEN", required=False)
