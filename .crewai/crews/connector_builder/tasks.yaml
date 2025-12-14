@@ -43,7 +43,7 @@ generate_client_code:
     - Include comprehensive error handling
     - Add docstrings for all public methods
     
-    Output to: /tmp/connector-output/{vendor_name}/
+    Output to: {output_dir}/{vendor_name}/
   expected_output: >
     Complete Python package with:
     - client.py (HTTP client class)
@@ -69,7 +69,7 @@ generate_framework_tools:
     
     Support frameworks: crewai, langgraph, strands
     
-    Output to: /tmp/connector-output/{vendor_name}/tools.py
+    Output to: {output_dir}/{vendor_name}/tools.py
   expected_output: >
     tools.py file with:
     - get_tools(framework: Literal["crewai", "langgraph", "strands"])
@@ -88,12 +88,12 @@ generate_tests:
     3. tests/test_tools.py - Framework tool tests
     4. tests/conftest.py - Pytest fixtures
     
-    Use pytest, pytest-mock, pytest-asyncio.
-    Mock HTTP responses with httpx_mock.
+    Use pytest, pytest-mock, pytest-asyncio, pytest-httpx.
+    Mock HTTP responses with httpx_mock from pytest-httpx.
     Test error cases and edge conditions.
     Aim for >80% coverage.
     
-    Output to: /tmp/connector-output/{vendor_name}/tests/
+    Output to: {output_dir}/{vendor_name}/tests/
   expected_output: >
     Complete test suite with:
     - test_client.py (client tests)

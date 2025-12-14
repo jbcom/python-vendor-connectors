@@ -4,7 +4,14 @@ description: Universal vendor connectors with AI-powered connector generation
 
 llm:
   provider: anthropic
+  # Model can be overridden via ANTHROPIC_MODEL_NAME env var
   model: claude-sonnet-4-20250514
+
+inputs:
+  # Common inputs for all crews
+  output_dir:
+    description: Directory to output generated files
+    default: ./connector-output
 
 crews:
   connector_builder:
