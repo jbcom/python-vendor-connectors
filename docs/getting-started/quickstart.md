@@ -101,7 +101,53 @@ repos = github.list_repositories()
 | `VAULT_ADDR` / `VAULT_TOKEN` | HashiCorp Vault |
 | `SLACK_TOKEN` / `SLACK_BOT_TOKEN` | Slack API |
 
+## Using AI Tools
+
+vendor-connectors provides AI-callable tools for use with LangChain, CrewAI, and AWS Strands:
+
+```python
+# AWS tools
+from vendor_connectors.aws.tools import get_tools
+aws_tools = get_tools()  # Auto-detects your framework
+
+# Meshy 3D tools
+from vendor_connectors.meshy.tools import get_tools
+meshy_tools = get_tools()
+
+# Force a specific framework
+langchain_tools = get_tools("langchain")
+crewai_tools = get_tools("crewai")
+```
+
+### With LangChain
+
+```python
+from langchain_anthropic import ChatAnthropic
+from langgraph.prebuilt import create_react_agent
+from vendor_connectors.meshy.tools import get_langchain_tools
+
+llm = ChatAnthropic(model="claude-sonnet-4-20250514")
+tools = get_langchain_tools()
+agent = create_react_agent(llm, tools)
+
+result = agent.invoke({"messages": [("user", "Generate a 3D sword")]})
+```
+
+### With CrewAI
+
+```python
+from crewai import Agent, Crew
+from vendor_connectors.aws.tools import get_crewai_tools
+
+agent = Agent(
+    role="Cloud Administrator",
+    goal="Manage AWS resources",
+    tools=get_crewai_tools(),
+)
+```
+
 ## Next Steps
 
 - Check out the [API Reference](../api/index.rst) for detailed documentation
+- See [Building Connector Tools](../development/building-connector-tools.md) to add tools for connectors
 - See [Contributing](../development/contributing.md) to help improve this project
