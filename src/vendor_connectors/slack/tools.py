@@ -195,7 +195,7 @@ def get_channel_history(
     messages = history.get("messages", []) if isinstance(history, dict) else []
 
     result = []
-    for msg in messages[:limit]:
+    for msg in messages:
         result.append(
             {
                 "timestamp": msg.get("ts", ""),
