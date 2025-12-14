@@ -23,7 +23,31 @@ Usage:
 
 from __future__ import annotations
 
+import os
 from typing import Any
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+def _get_connector():
+    """Create a SlackConnector with tokens from environment variables.
+
+    The slack_sdk WebClient only falls back to environment variables when
+    token=None, not when given empty strings. We explicitly load tokens
+    from environment to ensure proper authentication.
+
+    Returns:
+        SlackConnector: Configured Slack connector instance.
+    """
+    from vendor_connectors.slack import SlackConnector
+
+    return SlackConnector(
+        token=os.environ.get("SLACK_TOKEN"),
+        bot_token=os.environ.get("SLACK_BOT_TOKEN"),
+    )
+
 
 # =============================================================================
 # Tool Implementation Functions
@@ -45,12 +69,7 @@ def list_channels(
     Returns:
         List of channels with their properties (id, name, is_private, topic, purpose, member_count)
     """
-    from vendor_connectors.slack import SlackConnector
-
-    connector = SlackConnector(
-        token="",  # Will be loaded from env
-        bot_token="",
-    )
+    connector = _get_connector()
     channels = connector.list_conversations(
         exclude_archived=exclude_archived,
         channels_only=channels_only,
@@ -88,12 +107,7 @@ def list_users(
     Returns:
         List of users with their properties (id, name, real_name, email, is_admin, is_bot)
     """
-    from vendor_connectors.slack import SlackConnector
-
-    connector = SlackConnector(
-        token="",  # Will be loaded from env
-        bot_token="",
-    )
+    connector = _get_connector()
     users = connector.list_users(
         include_bots=include_bots,
         include_deleted=include_deleted,
@@ -132,13 +146,7 @@ def send_message(
     Returns:
         Dict with channel, text, and timestamp of the sent message
     """
-    from vendor_connectors.slack import SlackConnector
-
-    connector = SlackConnector(
-        token="",  # Will be loaded from env
-        bot_token="",
-    )
-
+    connector = _get_connector()
     timestamp = connector.send_message(
         channel_name=channel,
         text=text,
@@ -166,12 +174,7 @@ def get_channel_history(
     Returns:
         List of messages with their properties (timestamp, user, text, type)
     """
-    from vendor_connectors.slack import SlackConnector
-
-    connector = SlackConnector(
-        token="",  # Will be loaded from env
-        bot_token="",
-    )
+    connector = _get_connector()
 
     # Get channel ID from name
     channels = connector.list_conversations()

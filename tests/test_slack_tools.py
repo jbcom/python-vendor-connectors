@@ -23,11 +23,14 @@ def mock_slack_sdk():
     mock_slack_sdk.web.WebClient = MagicMock()
 
     # Insert into sys.modules before importing vendor_connectors.slack
-    with patch.dict(sys.modules, {
-        "slack_sdk": mock_slack_sdk,
-        "slack_sdk.errors": mock_slack_sdk.errors,
-        "slack_sdk.web": mock_slack_sdk.web,
-    }):
+    with patch.dict(
+        sys.modules,
+        {
+            "slack_sdk": mock_slack_sdk,
+            "slack_sdk.errors": mock_slack_sdk.errors,
+            "slack_sdk.web": mock_slack_sdk.web,
+        },
+    ):
         yield mock_slack_sdk
 
 
@@ -83,7 +86,7 @@ class TestListChannels:
             },
         }
 
-        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+        with patch("vendor_connectors.slack.tools._get_connector", return_value=mock_connector):
             result = list_channels()
 
         assert len(result) == 2
@@ -98,7 +101,7 @@ class TestListChannels:
         mock_connector = MagicMock()
         mock_connector.list_conversations.return_value = {}
 
-        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+        with patch("vendor_connectors.slack.tools._get_connector", return_value=mock_connector):
             list_channels(exclude_archived=False)
 
         mock_connector.list_conversations.assert_called_once()
@@ -131,7 +134,7 @@ class TestListUsers:
             },
         }
 
-        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+        with patch("vendor_connectors.slack.tools._get_connector", return_value=mock_connector):
             result = list_users()
 
         assert len(result) == 2
@@ -147,7 +150,7 @@ class TestListUsers:
         mock_connector = MagicMock()
         mock_connector.list_users.return_value = {}
 
-        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+        with patch("vendor_connectors.slack.tools._get_connector", return_value=mock_connector):
             list_users(include_bots=True)
 
         mock_connector.list_users.assert_called_once()
@@ -165,7 +168,7 @@ class TestSendMessage:
         mock_connector = MagicMock()
         mock_connector.send_message.return_value = "1234567890.123456"
 
-        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+        with patch("vendor_connectors.slack.tools._get_connector", return_value=mock_connector):
             result = send_message(channel="general", text="Hello, world!")
 
         assert result["channel"] == "general"
@@ -180,7 +183,7 @@ class TestSendMessage:
         mock_connector = MagicMock()
         mock_connector.send_message.return_value = "1234567890.123457"
 
-        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+        with patch("vendor_connectors.slack.tools._get_connector", return_value=mock_connector):
             send_message(channel="general", text="Reply", thread_id="1234567890.123456")
 
         mock_connector.send_message.assert_called_once()
@@ -216,7 +219,7 @@ class TestGetChannelHistory:
             ]
         }
 
-        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+        with patch("vendor_connectors.slack.tools._get_connector", return_value=mock_connector):
             result = get_channel_history(channel="general")
 
         assert len(result) == 2
@@ -231,7 +234,7 @@ class TestGetChannelHistory:
         mock_connector = MagicMock()
         mock_connector.list_conversations.return_value = {}
 
-        with patch("vendor_connectors.slack.tools.SlackConnector", return_value=mock_connector):
+        with patch("vendor_connectors.slack.tools._get_connector", return_value=mock_connector):
             result = get_channel_history(channel="nonexistent")
 
         assert len(result) == 0
