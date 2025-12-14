@@ -115,3 +115,121 @@ class TestZoomConnector:
         result = connector.create_zoom_user("newuser@example.com", "New", "User")
         assert result is True
         assert mock_post.call_count == 2
+
+    @patch("vendor_connectors.zoom.requests.get")
+    @patch("vendor_connectors.zoom.requests.post")
+    def test_list_users(self, mock_post, mock_get, base_connector_kwargs):
+        """Test list_users method (alias for get_zoom_users)."""
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"access_token": "test-token"}
+        mock_token_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_token_response
+
+        mock_users_response = MagicMock()
+        mock_users_response.json.return_value = {
+            "users": [
+                {"email": "user1@example.com", "id": "123"},
+            ],
+            "next_page_token": None,
+        }
+        mock_users_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_users_response
+
+        connector = ZoomConnector(
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+            account_id="test-account-id",
+            **base_connector_kwargs,
+        )
+
+        users = connector.list_users()
+        assert "user1@example.com" in users
+
+    @patch("vendor_connectors.zoom.requests.get")
+    @patch("vendor_connectors.zoom.requests.post")
+    def test_get_user(self, mock_post, mock_get, base_connector_kwargs):
+        """Test getting a specific user."""
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"access_token": "test-token"}
+        mock_token_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_token_response
+
+        mock_user_response = MagicMock()
+        mock_user_response.json.return_value = {
+            "id": "123",
+            "email": "user1@example.com",
+            "first_name": "User",
+            "last_name": "One",
+        }
+        mock_user_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_user_response
+
+        connector = ZoomConnector(
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+            account_id="test-account-id",
+            **base_connector_kwargs,
+        )
+
+        user = connector.get_user("user1@example.com")
+        assert user["email"] == "user1@example.com"
+        assert user["id"] == "123"
+
+    @patch("vendor_connectors.zoom.requests.get")
+    @patch("vendor_connectors.zoom.requests.post")
+    def test_list_meetings(self, mock_post, mock_get, base_connector_kwargs):
+        """Test listing meetings for a user."""
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"access_token": "test-token"}
+        mock_token_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_token_response
+
+        mock_meetings_response = MagicMock()
+        mock_meetings_response.json.return_value = {
+            "meetings": [
+                {"id": "111", "topic": "Team Meeting"},
+                {"id": "222", "topic": "Client Call"},
+            ]
+        }
+        mock_meetings_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_meetings_response
+
+        connector = ZoomConnector(
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+            account_id="test-account-id",
+            **base_connector_kwargs,
+        )
+
+        meetings = connector.list_meetings("user1@example.com")
+        assert len(meetings) == 2
+        assert meetings[0]["id"] == "111"
+
+    @patch("vendor_connectors.zoom.requests.get")
+    @patch("vendor_connectors.zoom.requests.post")
+    def test_get_meeting(self, mock_post, mock_get, base_connector_kwargs):
+        """Test getting a specific meeting."""
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"access_token": "test-token"}
+        mock_token_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_token_response
+
+        mock_meeting_response = MagicMock()
+        mock_meeting_response.json.return_value = {
+            "id": "111",
+            "topic": "Team Meeting",
+            "start_time": "2024-01-15T10:00:00Z",
+        }
+        mock_meeting_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_meeting_response
+
+        connector = ZoomConnector(
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+            account_id="test-account-id",
+            **base_connector_kwargs,
+        )
+
+        meeting = connector.get_meeting("111")
+        assert meeting["id"] == "111"
+        assert meeting["topic"] == "Team Meeting"
