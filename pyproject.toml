@@ -82,9 +82,9 @@ agents = [
     "crewai[tools]>=1.5.0",
     "mcp>=1.0.0",
 ]
-# AI crew orchestration for connector generation
-crews = [
-    "agentic-crew[crewai,scraping]>=0.1.0",
+# Strands Agents SDK integration
+strands = [
+    "strands-agents>=0.1.0",
 ]
 # Vector store for Meshy RAG embeddings
 vector = [
@@ -137,6 +137,7 @@ ai-observability = [
 all = [
     "crewai[tools]>=1.5.0",
     "mcp>=1.0.0",
+    "strands-agents>=0.1.0",
     "fastapi>=0.115.0",
     "uvicorn>=0.38.0",
     "pyngrok>=7.2.2",
@@ -149,7 +150,6 @@ all = [
     "langchain-google-genai>=2.0.0",
     "langchain-xai>=0.2.0",
     "langchain-ollama>=0.3.0",
-    "agentic-crew[crewai,scraping]>=0.1.0",
 ]
 dev = [
     "pytest>=8.0.0",
