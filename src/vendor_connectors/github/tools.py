@@ -228,12 +228,18 @@ def get_repository_file(
         github_branch=github_branch,
     )
 
-    content, sha, path = connector.get_repository_file(
+    # get_repository_file returns (content, sha, path) when both return_sha and return_path are True
+    result = connector.get_repository_file(
         file_path=file_path,
         decode=True,
         return_sha=True,
         return_path=True,
     )
+
+    # Unpack the tuple explicitly
+    content = result[0] if isinstance(result, tuple) else result
+    sha = result[1] if isinstance(result, tuple) and len(result) > 1 else None
+    path = result[2] if isinstance(result, tuple) and len(result) > 2 else file_path
 
     return {
         "path": str(path),

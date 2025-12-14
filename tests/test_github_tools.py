@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Patch target for GithubConnector - must patch where it's imported
+# Patch target for GithubConnector - patch where it's defined, not where it's used
 GITHUB_CONNECTOR_PATCH = "vendor_connectors.github.GithubConnector"
 
 
