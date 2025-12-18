@@ -252,6 +252,13 @@ meshy-mcp = "vendor_connectors.meshy.mcp:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/vendor_connectors"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+    ".github",
+    ".cursor",
+    ".kiro",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
