@@ -158,3 +158,13 @@ pip install langchain-google-genai  # For Gemini
 
 ---
 *Last updated: 2025-12-07*
+
+## Session: 2025-12-24 (Fix CI failures in PR #19)
+
+### Completed
+- **Fixed Lint Failures in VendorConnectorBase**: Removed unnecessary quotes from type annotations in `src/vendor_connectors/base.py` (`UP037`).
+- **Verified Linting**: All checks passed for `src/` and `tests/` using Ruff.
+- **Investigated CI Status**: Confirmed that all functional tests (py3.10-3.13) passed in CI, and review failures were likely tool-related.
+
+### Key Learnings
+- Ruff `UP037` enforcement requires removal of quotes from type hints when `from __future__ import annotations` is used, even for types imported under `TYPE_CHECKING`.
