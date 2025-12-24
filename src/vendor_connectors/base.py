@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from langchain_core.tools import StructuredTool
+    from pydantic import BaseModel
 
 
 class RateLimitError(Exception):
@@ -140,6 +141,7 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
         # Tool registry for LangChain/MCP
         self._tools: list[StructuredTool] = []
         self._tool_functions: dict[str, Callable] = {}
+        self._tool_schemas: dict[str, type[BaseModel]] = {}
 
     @property
     def api_key(self) -> str:
@@ -329,6 +331,7 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
         func: Callable,
         name: str | None = None,
         description: str | None = None,
+        schema: type[BaseModel] | None = None,
     ) -> None:
         """Register a function as a LangChain tool.
 
@@ -336,9 +339,12 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
             func: The function to register
             name: Tool name (defaults to function name)
             description: Tool description (defaults to docstring)
+            schema: Pydantic model for input schema.
         """
         tool_name = name or func.__name__
         self._tool_functions[tool_name] = func
+        if schema:
+            self._tool_schemas[tool_name] = schema
 
     def get_tools(self) -> list[StructuredTool]:
         """Get all registered tools as LangChain StructuredTools.
@@ -364,55 +370,64 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
         return tools
 
     # -------------------------------------------------------------------------
-    # MCP Server Helpers
+    # AI Tool Definition Helpers
     # -------------------------------------------------------------------------
 
-    def get_mcp_tool_definitions(self) -> list[dict[str, Any]]:
-        """Get tool definitions in MCP format.
+    def get_ai_tool_definitions(self) -> list[dict[str, Any]]:
+        """Get tool definitions in Vercel AI SDK-compatible format.
 
         Returns:
-            List of MCP tool definition dicts
+            List of AI tool definition dicts
         """
         import inspect
 
+        from vendor_connectors.ai_tools import get_pydantic_schema
+
         definitions = []
         for name, func in self._tool_functions.items():
-            sig = inspect.signature(func)
-            properties = {}
-            required = []
+            # Use Pydantic schema if available
+            if name in self._tool_schemas:
+                input_schema = get_pydantic_schema(self._tool_schemas[name])
+            else:
+                # Fallback to inspect-based schema generation
+                sig = inspect.signature(func)
+                properties = {}
+                required = []
 
-            for param_name, param in sig.parameters.items():
-                if param_name == "self":
-                    continue
+                for param_name, param in sig.parameters.items():
+                    if param_name == "self":
+                        continue
 
-                param_type = "string"
-                if param.annotation != inspect.Parameter.empty:
-                    if param.annotation in (int, float):
-                        param_type = "number"
-                    elif param.annotation is bool:
-                        param_type = "boolean"
+                    param_type = "string"
+                    if param.annotation != inspect.Parameter.empty:
+                        if param.annotation in (int, float):
+                            param_type = "number"
+                        elif param.annotation is bool:
+                            param_type = "boolean"
 
-                properties[param_name] = {"type": param_type}
+                    properties[param_name] = {"type": param_type}
 
-                if param.default == inspect.Parameter.empty:
-                    required.append(param_name)
+                    if param.default == inspect.Parameter.empty:
+                        required.append(param_name)
+
+                input_schema = {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                }
 
             definitions.append(
                 {
                     "name": name,
                     "description": func.__doc__ or f"Tool: {name}",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": properties,
-                        "required": required,
-                    },
+                    "inputSchema": input_schema,
                 }
             )
 
         return definitions
 
-    def handle_mcp_tool_call(self, name: str, arguments: dict[str, Any]) -> Any:
-        """Handle an MCP tool call.
+    def handle_ai_tool_call(self, name: str, arguments: dict[str, Any]) -> Any:
+        """Handle an AI tool call.
 
         Args:
             name: Tool name
