@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "vendor-connectors"
 version = "0.2.0"
 description = "Universal vendor connectors with transparent secret management, including Cursor AI agents, Anthropic Claude, and Meshy AI for 3D assets"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 readme = "README.md"
 keywords = ["aws", "gcp", "github", "slack", "vault", "zoom", "meshy", "3d", "connectors"]
