@@ -42,6 +42,82 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Pydantic Schemas for Vercel AI SDK
+# =============================================================================
+
+
+class Text3DGenerateParams(BaseModel):
+    """Parameters for generating a 3D model from a text description."""
+
+    prompt: str = Field(..., description="Detailed text description of the 3D model (max 600 chars)")
+    art_style: str = Field(
+        "realistic",
+        description="One of: realistic, sculpture. For 'sculpture', set enable_pbr=False.",
+    )
+    negative_prompt: str = Field("", description="Things to avoid in the generation")
+    target_polycount: int = Field(30000, description="Target polygon count")
+    enable_pbr: bool = Field(
+        True,
+        description="Enable PBR materials. API defaults to False; we default to True for better realistic renders.",
+    )
+
+
+class Image3DGenerateParams(BaseModel):
+    """Parameters for generating a 3D model from an image."""
+
+    image_url: str = Field(..., description="URL to the source image")
+    topology: str = Field("", description='Mesh topology ("quad" or "triangle"), empty for default')
+    target_polycount: int = Field(15000, description="Target polygon count")
+    enable_pbr: bool = Field(True, description="Enable PBR materials")
+
+
+class RigModelParams(BaseModel):
+    """Parameters for adding a skeleton/rig to a static 3D model."""
+
+    model_id: str = Field(..., description="Task ID of the static model to rig")
+    wait: bool = Field(True, description="Whether to wait for completion (default True)")
+
+
+class ApplyAnimationParams(BaseModel):
+    """Parameters for applying an animation to a rigged model."""
+
+    model_id: str = Field(..., description="Task ID of the rigged model")
+    animation_id: int = Field(..., description="Animation ID from the Meshy catalog (integer)")
+    wait: bool = Field(True, description="Whether to wait for completion (default True)")
+
+
+class RetextureModelParams(BaseModel):
+    """Parameters for applying new textures to an existing model."""
+
+    model_id: str = Field(..., description="Task ID of the model to retexture")
+    texture_prompt: str = Field(..., description="Description of the new texture/appearance")
+    enable_pbr: bool = Field(True, description="Enable PBR materials")
+    wait: bool = Field(True, description="Whether to wait for completion (default True)")
+
+
+class ListAnimationsParams(BaseModel):
+    """Parameters for listing available animations from the Meshy catalog."""
+
+    category: str = Field("", description="Optional category filter (Fighting, WalkAndRun, etc.)")
+    limit: int = Field(50, description="Maximum number of results")
+
+
+class CheckTaskStatusParams(BaseModel):
+    """Parameters for checking the status of a Meshy task."""
+
+    task_id: str = Field(..., description="The Meshy task ID")
+    task_type: str = Field("text-to-3d", description="Task type (text-to-3d, rigging, animation, retexture)")
+
+
+class GetAnimationParams(BaseModel):
+    """Parameters for getting details of a specific animation."""
+
+    animation_id: int = Field(..., description="The animation ID number")
+
+
 # =============================================================================
 # Tool Implementation Functions
 # =============================================================================
@@ -369,6 +445,7 @@ TOOL_DEFINITIONS = [
             "Provide a detailed prompt describing the model. Returns the task_id, "
             "status, model_url, and thumbnail_url on success."
         ),
+        "schema": Text3DGenerateParams,
     },
     {
         "func": image3d_generate,
@@ -378,6 +455,7 @@ TOOL_DEFINITIONS = [
             "Provide a URL to the source image. Returns the task_id, "
             "status, model_url, and thumbnail_url on success."
         ),
+        "schema": Image3DGenerateParams,
     },
     {
         "func": rig_model,
@@ -387,6 +465,7 @@ TOOL_DEFINITIONS = [
             "you can apply animations. Takes the model's task ID and returns "
             "a new task ID for the rigging operation."
         ),
+        "schema": RigModelParams,
     },
     {
         "func": apply_animation,
@@ -395,6 +474,7 @@ TOOL_DEFINITIONS = [
             "Apply an animation to a rigged 3D model. Use list_animations to "
             "see available animation IDs. The model must be rigged first."
         ),
+        "schema": ApplyAnimationParams,
     },
     {
         "func": retexture_model,
@@ -403,6 +483,7 @@ TOOL_DEFINITIONS = [
             "Apply new textures to an existing 3D model. Great for creating "
             "color variants or material changes without regenerating the mesh."
         ),
+        "schema": RetextureModelParams,
     },
     {
         "func": list_animations,
@@ -412,6 +493,7 @@ TOOL_DEFINITIONS = [
             "Optionally filter by category. Returns animation IDs and names "
             "that can be used with apply_animation."
         ),
+        "schema": ListAnimationsParams,
     },
     {
         "func": check_task_status,
@@ -421,6 +503,7 @@ TOOL_DEFINITIONS = [
             "(pending, processing, succeeded, failed), progress percentage, "
             "and model URL if complete."
         ),
+        "schema": CheckTaskStatusParams,
     },
     {
         "func": get_animation,
@@ -428,6 +511,7 @@ TOOL_DEFINITIONS = [
         "description": (
             "Get details of a specific animation by ID, including name, category, subcategory, and preview URL."
         ),
+        "schema": GetAnimationParams,
     },
 ]
 
@@ -489,6 +573,36 @@ def get_crewai_tools() -> list[Any]:
     return tools
 
 
+def get_vercel_ai_tools() -> list[Any]:
+    """Get all Meshy tools as Vercel AI SDK compatible tools.
+
+    Returns:
+        List of Vercel AI SDK Tool objects for Meshy operations.
+
+    Raises:
+        ImportError: If ai-sdk-python is not installed.
+    """
+    try:
+        from ai_sdk import tool
+    except ImportError as e:
+        raise ImportError(
+            "ai-sdk-python is required for Vercel AI tools.\n"
+            "Install with: pip install vendor-connectors[vercel-ai]"
+        ) from e
+
+    tools = []
+    for defn in TOOL_DEFINITIONS:
+        wrapped_tool = tool(
+            name=defn["name"],
+            description=defn["description"],
+            parameters=defn["schema"].model_json_schema(),
+            execute=defn["func"],
+        )
+        tools.append(wrapped_tool)
+
+    return tools
+
+
 def get_strands_tools() -> list[Any]:
     """Get all Meshy tools as plain Python functions for AWS Strands.
 
@@ -512,6 +626,7 @@ def get_tools(framework: str = "auto") -> list[Any]:
             - "auto" (default): Auto-detect based on installed packages
             - "langchain": Force LangChain StructuredTools
             - "crewai": Force CrewAI tools
+            - "vercel-ai": Force Vercel AI SDK tools
             - "strands": Force plain functions for Strands
             - "functions": Force plain functions (alias for strands)
 
@@ -533,8 +648,9 @@ def get_tools(framework: str = "auto") -> list[Any]:
     from vendor_connectors._compat import is_available
 
     if framework == "auto":
-        # Priority: CrewAI > LangChain > Strands/functions
-        # (CrewAI first since it's more opinionated about tool format)
+        # Priority: Vercel AI > CrewAI > LangChain > Strands/functions
+        if is_available("ai_sdk"):
+            return get_vercel_ai_tools()
         if is_available("crewai"):
             return get_crewai_tools()
         if is_available("langchain_core"):
@@ -546,10 +662,14 @@ def get_tools(framework: str = "auto") -> list[Any]:
         return get_langchain_tools()
     if framework == "crewai":
         return get_crewai_tools()
+    if framework == "vercel-ai":
+        return get_vercel_ai_tools()
     if framework in ("strands", "functions"):
         return get_strands_tools()
 
-    raise ValueError(f"Unknown framework: {framework}. Options: auto, langchain, crewai, strands, functions")
+    raise ValueError(
+        f"Unknown framework: {framework}. Options: auto, langchain, crewai, vercel-ai, strands, functions"
+    )
 
 
 # =============================================================================
@@ -561,6 +681,7 @@ __all__ = [
     "get_tools",
     "get_langchain_tools",
     "get_crewai_tools",
+    "get_vercel_ai_tools",
     "get_strands_tools",
     # Raw functions (for direct use or custom wrappers)
     "text3d_generate",

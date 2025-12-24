@@ -98,6 +98,10 @@ langchain = [
 crewai = [
     "crewai[tools]>=1.5.0",
 ]
+# Vercel AI SDK support
+vercel-ai = [
+    "ai-sdk-python>=0.1.0",
+]
 # AWS Strands agents support
 strands = [
     "strands-agents>=0.1.0",
@@ -110,6 +114,7 @@ mcp = [
 ai = [
     "langchain-core>=0.3.0",
     "crewai[tools]>=1.5.0",
+    "ai-sdk-python>=0.1.0",
     "strands-agents>=0.1.0",
     "mcp>=1.0.0",
 ]
@@ -238,6 +243,7 @@ all = [
     # AI frameworks
     "langchain-core>=0.3.0",
     "crewai[tools]>=1.5.0",
+    "ai-sdk-python>=0.1.0",
     "strands-agents>=0.1.0",
     "mcp>=1.0.0",
     # Features

@@ -407,6 +407,40 @@ class TestCrewAITools:
                 meshy_tools.get_crewai_tools()
 
 
+class TestVercelAITools:
+    """Tests for Vercel AI SDK tools integration (optional dependency)."""
+
+    @pytest.mark.skipif(
+        not pytest.importorskip("ai_sdk", reason="ai-sdk-python not installed"),
+        reason="ai-sdk-python not installed",
+    )
+    def test_get_vercel_ai_tools_returns_tools(self):
+        """Test that get_vercel_ai_tools returns Vercel AI SDK tools."""
+        from vendor_connectors.meshy.tools import get_vercel_ai_tools
+
+        tools = get_vercel_ai_tools()
+        assert isinstance(tools, list)
+        assert len(tools) == len(EXPECTED_MESHY_TOOLS)
+
+        # Verify they're Vercel AI SDK tools
+        from ai_sdk.tool import Tool
+
+        for tool in tools:
+            assert isinstance(tool, Tool)
+
+        # Verify names
+        tool_names = {t.name for t in tools}
+        assert tool_names == EXPECTED_MESHY_TOOLS
+
+    def test_get_vercel_ai_tools_requires_ai_sdk(self):
+        """Test that get_vercel_ai_tools raises ImportError without ai_sdk."""
+        with patch.dict("sys.modules", {"ai_sdk": None}):
+            from vendor_connectors.meshy import tools as meshy_tools
+
+            with pytest.raises(ImportError, match="ai-sdk-python is required"):
+                meshy_tools.get_vercel_ai_tools()
+
+
 class TestAutoDetection:
     """Tests for framework auto-detection."""
 
@@ -425,3 +459,17 @@ class TestAutoDetection:
 
         with pytest.raises(ValueError, match="Unknown framework"):
             get_tools("invalid_framework")
+
+    @pytest.mark.skipif(
+        not pytest.importorskip("ai_sdk", reason="ai-sdk-python not installed"),
+        reason="ai-sdk-python not installed",
+    )
+    def test_get_tools_auto_detects_vercel_ai(self):
+        """Test that get_tools auto-detects Vercel AI SDK."""
+        from vendor_connectors.meshy.tools import get_tools
+        from ai_sdk.tool import Tool
+
+        with patch("vendor_connectors._compat.is_available") as mock_is_available:
+            mock_is_available.side_effect = lambda pkg: pkg == "ai_sdk"
+            tools = get_tools("auto")
+            assert all(isinstance(t, Tool) for t in tools)
