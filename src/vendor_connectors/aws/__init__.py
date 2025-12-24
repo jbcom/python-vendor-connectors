@@ -580,7 +580,20 @@ class AWSConnectorFull(AWSConnector, AWSOrganizationsMixin, AWSSSOmixin, AWSS3Mi
     pass
 
 
+from vendor_connectors.aws.tools import (
+    get_crewai_tools,
+    get_langchain_tools,
+    get_strands_tools,
+    get_tools,
+)
+
 __all__ = [
+    # Tools
+    "get_tools",
+    "get_langchain_tools",
+    "get_crewai_tools",
+    "get_strands_tools",
+    # Core connector classes
     "AWSConnector",
     "AWSConnectorFull",
     "AWSOrganizationsMixin",

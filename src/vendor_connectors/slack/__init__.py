@@ -20,11 +20,12 @@ else:
             yield batch
 
 
-from directed_inputs_class import DirectedInputsClass
 from extended_data_types import is_nothing, wrap_raw_data_for_export
 from lifecyclelogging import Logging
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import WebClient
+
+from vendor_connectors.base import VendorConnectorBase
 
 # Settings
 MAX_RETRY_TIMEOUT_SECONDS = 30
@@ -35,6 +36,7 @@ class SlackAPIError(RuntimeError):
 
     def __init__(self, response):
         self.response = response
+        self.status_code = response.status_code if hasattr(response, "status_code") else None
         super().__init__(f"Slack API error: {response}")
 
 
@@ -153,13 +155,13 @@ def get_rich_text_blocks(
     return [{"type": "rich_text", "elements": elements}, get_divider()]
 
 
-class SlackConnector(DirectedInputsClass):
+class SlackConnector(VendorConnectorBase):
     """Slack connector for messaging, directory, and channel management."""
 
     def __init__(
         self,
-        token: str,
-        bot_token: str,
+        token: Optional[str] = None,
+        bot_token: Optional[str] = None,
         logger: Optional[Logging] = None,
         **kwargs,
     ):
@@ -169,14 +171,15 @@ class SlackConnector(DirectedInputsClass):
             token: Slack user token with directory scopes.
             bot_token: Bot token used for posting messages.
             logger: Optional shared logger instance.
-            **kwargs: Extra keyword arguments forwarded to DirectedInputsClass.
+            **kwargs: Extra keyword arguments forwarded to VendorConnectorBase.
         """
-        super().__init__(**kwargs)
-        self.logging = logger or Logging(logger_name="SlackConnector")
-        self.logger = self.logging.logger
+        super().__init__(logger=logger, **kwargs)
 
-        self.web_client = WebClient(token)
-        self.bot_web_client = WebClient(bot_token)
+        self.token = token or self.get_input("SLACK_TOKEN", required=True)
+        self.bot_token = bot_token or self.get_input("SLACK_BOT_TOKEN", required=True)
+
+        self.web_client = WebClient(self.token)
+        self.bot_web_client = WebClient(self.bot_token)
 
     @staticmethod
     def _normalize_identifier_filter(
@@ -504,3 +507,29 @@ class SlackConnector(DirectedInputsClass):
             grouped[datum_id] = datum
 
         return grouped
+
+
+from vendor_connectors.slack.tools import (
+    get_crewai_tools,
+    get_langchain_tools,
+    get_strands_tools,
+    get_tools,
+)
+
+__all__ = [
+    # Tools
+    "get_tools",
+    "get_langchain_tools",
+    "get_crewai_tools",
+    "get_strands_tools",
+    # Core connector
+    "SlackConnector",
+    # Helper functions
+    "get_divider",
+    "get_header_block",
+    "get_field_context_message_blocks",
+    "get_key_value_blocks",
+    "get_rich_text_blocks",
+    # Exceptions
+    "SlackAPIError",
+]

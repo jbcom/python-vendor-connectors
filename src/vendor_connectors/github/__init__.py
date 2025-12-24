@@ -7,7 +7,6 @@ import os
 from copy import deepcopy
 from typing import Any, Optional, Union
 
-from directed_inputs_class import DirectedInputsClass
 from extended_data_types import (
     decode_json,
     decode_yaml,
@@ -21,6 +20,8 @@ from lifecyclelogging import Logging
 from python_graphql_client import GraphqlClient
 from ruamel.yaml import YAML
 
+from vendor_connectors.base import VendorConnectorBase
+
 FilePath = Union[str, bytes, os.PathLike[Any]]
 
 
@@ -33,7 +34,7 @@ def get_github_api_error(exc: GithubException) -> Optional[str]:
 DEFAULT_PER_PAGE = 100
 
 
-class GithubConnector(DirectedInputsClass):
+class GithubConnector(VendorConnectorBase):
     """Github connector for repository operations."""
 
     def __init__(
@@ -46,15 +47,11 @@ class GithubConnector(DirectedInputsClass):
         logger: Optional[Logging] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.logging = logger or Logging(logger_name="GithubConnector")
-        self.logger = self.logging.logger
+        super().__init__(logger=logger, **kwargs)
 
         self.GITHUB_OWNER = github_owner
         self.GITHUB_REPO = github_repo
-        self.GITHUB_TOKEN = github_token
-
-        self.logger.info(f"Connecting to GitHub organization {self.GITHUB_OWNER}")
+        self.GITHUB_TOKEN = github_token or self.get_input("GITHUB_TOKEN", required=True)
 
         auth = Auth.Token(self.GITHUB_TOKEN)
         self.git = Github(auth=auth, per_page=per_page)
@@ -832,18 +829,18 @@ class GithubConnector(DirectedInputsClass):
         setup_steps = [
             self.build_workflow_step(
                 name="Checkout code",
-                uses="actions/checkout@v4",
+                uses="actions/checkout@v6",
             ),
             self.build_workflow_step(
                 name="Set up Python",
-                uses="actions/setup-python@v5",
+                uses="actions/setup-python@v6",
                 with_params={
                     "python-version": "${{ matrix.python-version }}",
                 },
             ),
             self.build_workflow_step(
                 name="Install uv",
-                uses="astral-sh/setup-uv@v4",
+                uses="astral-sh/setup-uv@v7",
             ),
             self.build_workflow_step(
                 name="Install dependencies",
@@ -970,3 +967,21 @@ def build_github_actions_workflow(
     buffer = io.StringIO()
     yaml.dump(workflow, buffer)
     return buffer.getvalue().strip()
+
+
+from vendor_connectors.github.tools import (
+    get_crewai_tools,
+    get_langchain_tools,
+    get_strands_tools,
+    get_tools,
+)
+
+__all__ = [
+    # Tools
+    "get_tools",
+    "get_langchain_tools",
+    "get_crewai_tools",
+    "get_strands_tools",
+    # Core connector
+    "GithubConnector",
+]

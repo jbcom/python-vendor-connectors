@@ -6,14 +6,15 @@ import base64
 from typing import Any, Optional
 
 import requests
-from directed_inputs_class import DirectedInputsClass
 from lifecyclelogging import Logging
+
+from vendor_connectors.base import VendorConnectorBase
 
 # Default timeout for HTTP requests in seconds
 DEFAULT_REQUEST_TIMEOUT = 30
 
 
-class ZoomConnector(DirectedInputsClass):
+class ZoomConnector(VendorConnectorBase):
     """Zoom connector for user management."""
 
     def __init__(
@@ -24,9 +25,7 @@ class ZoomConnector(DirectedInputsClass):
         logger: Optional[Logging] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.logging = logger or Logging(logger_name="ZoomConnector")
-        self.logger = self.logging.logger
+        super().__init__(logger=logger, **kwargs)
         self.errors: list[str] = []  # Track errors for programmatic access
 
         self.client_id = client_id or self.get_input("ZOOM_CLIENT_ID", required=True)
@@ -186,3 +185,21 @@ class ZoomConnector(DirectedInputsClass):
             return response.json()
         except requests.exceptions.RequestException as exc:
             raise RuntimeError(f"Failed to get meeting {meeting_id}: {exc}") from exc
+
+
+from vendor_connectors.zoom.tools import (
+    get_crewai_tools,
+    get_langchain_tools,
+    get_strands_tools,
+    get_tools,
+)
+
+__all__ = [
+    # Tools
+    "get_tools",
+    "get_langchain_tools",
+    "get_crewai_tools",
+    "get_strands_tools",
+    # Core connector
+    "ZoomConnector",
+]

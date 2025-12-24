@@ -26,6 +26,68 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Input Schemas
+# =============================================================================
+
+
+class ListRepositoriesSchema(BaseModel):
+    """Schema for listing GitHub repositories."""
+
+    github_owner: str = Field(..., description="GitHub organization or user name.")
+    github_token: str = Field(..., description="GitHub personal access token.")
+    type_filter: str = Field(
+        "all", description="Filter type ('all', 'public', 'private', 'forks', 'sources', 'member')."
+    )
+    include_branches: bool = Field(False, description="Include branch information.")
+
+
+class GetRepositorySchema(BaseModel):
+    """Schema for getting GitHub repository details."""
+
+    github_owner: str = Field(..., description="GitHub organization or user name.")
+    github_token: str = Field(..., description="GitHub personal access token.")
+    repo_name: str = Field(..., description="The name of the repository.")
+
+
+class ListTeamsSchema(BaseModel):
+    """Schema for listing GitHub teams."""
+
+    github_owner: str = Field(..., description="GitHub organization name.")
+    github_token: str = Field(..., description="GitHub personal access token.")
+    include_members: bool = Field(False, description="Include team members.")
+    include_repos: bool = Field(False, description="Include team repositories.")
+
+
+class GetTeamSchema(BaseModel):
+    """Schema for getting GitHub team details."""
+
+    github_owner: str = Field(..., description="GitHub organization name.")
+    github_token: str = Field(..., description="GitHub personal access token.")
+    team_slug: str = Field(..., description="The slug of the team.")
+
+
+class ListOrgMembersSchema(BaseModel):
+    """Schema for listing GitHub organization members."""
+
+    github_owner: str = Field(..., description="GitHub organization name.")
+    github_token: str = Field(..., description="GitHub personal access token.")
+    role: Optional[str] = Field(None, description="Filter by role ('admin', 'member').")
+    include_pending: bool = Field(False, description="Include pending invitations.")
+
+
+class GetRepositoryFileSchema(BaseModel):
+    """Schema for getting a file from a GitHub repository."""
+
+    github_owner: str = Field(..., description="GitHub organization or user name.")
+    github_token: str = Field(..., description="GitHub personal access token.")
+    github_repo: str = Field(..., description="The name of the repository.")
+    file_path: str = Field(..., description="The path to the file in the repository.")
+    github_branch: Optional[str] = Field(None, description="The branch name.")
+
+
 # =============================================================================
 # Tool Implementation Functions
 # =============================================================================
@@ -294,31 +356,37 @@ TOOL_DEFINITIONS = [
         "name": "github_list_repositories",
         "description": "List repositories in the GitHub organization. Returns repository names, descriptions, and metadata.",
         "func": list_repositories,
+        "args_schema": ListRepositoriesSchema,
     },
     {
         "name": "github_get_repository",
         "description": "Get a specific repository details by name.",
         "func": get_repository,
+        "args_schema": GetRepositorySchema,
     },
     {
         "name": "github_list_teams",
         "description": "List teams in the GitHub organization with their metadata.",
         "func": list_teams,
+        "args_schema": ListTeamsSchema,
     },
     {
         "name": "github_get_team",
         "description": "Get a specific team details by slug.",
         "func": get_team,
+        "args_schema": GetTeamSchema,
     },
     {
         "name": "github_list_org_members",
         "description": "List members in the GitHub organization with their roles and details.",
         "func": list_org_members,
+        "args_schema": ListOrgMembersSchema,
     },
     {
         "name": "github_get_repository_file",
         "description": "Get file contents from a repository. Returns the file content and metadata.",
         "func": get_repository_file,
+        "args_schema": GetRepositoryFileSchema,
     },
 ]
 
@@ -349,6 +417,7 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
+            args_schema=defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
@@ -374,6 +443,8 @@ def get_crewai_tools() -> list[Any]:
     for defn in TOOL_DEFINITIONS:
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
+        if "args_schema" in defn:
+            wrapped.args_schema = defn["args_schema"]
         tools.append(wrapped)
 
     return tools

@@ -26,6 +26,44 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Input Schemas
+# =============================================================================
+
+
+class ListChannelsSchema(BaseModel):
+    """Schema for listing Slack channels."""
+
+    exclude_archived: bool = Field(True, description="Exclude archived channels when True.")
+    channels_only: bool = Field(True, description="Return only channel-type conversations when True.")
+    limit: int = Field(100, description="Maximum number of channels to return.")
+
+
+class ListUsersSchema(BaseModel):
+    """Schema for listing Slack users."""
+
+    include_bots: bool = Field(False, description="Include bot accounts when True.")
+    include_deleted: bool = Field(False, description="Include deactivated accounts when True.")
+    max_results: int = Field(100, description="Maximum number of users to return.")
+
+
+class SendMessageSchema(BaseModel):
+    """Schema for sending a Slack message."""
+
+    channel: str = Field(..., description="Channel name (without #) to send message to.")
+    text: str = Field(..., description="Message text to send.")
+    thread_id: str = Field("", description="Optional thread timestamp to reply in a thread.")
+
+
+class GetChannelHistorySchema(BaseModel):
+    """Schema for getting Slack channel history."""
+
+    channel: str = Field(..., description="Channel name (without #) to get history from.")
+    limit: int = Field(100, description="Maximum number of messages to return.")
+
+
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -220,21 +258,25 @@ TOOL_DEFINITIONS = [
         "name": "slack_list_channels",
         "description": "List Slack channels with their properties. Returns channel names, IDs, topics, and member counts.",
         "func": list_channels,
+        "args_schema": ListChannelsSchema,
     },
     {
         "name": "slack_list_users",
         "description": "List Slack users with their profiles. Returns user names, emails, and roles.",
         "func": list_users,
+        "args_schema": ListUsersSchema,
     },
     {
         "name": "slack_send_message",
         "description": "Send a message to a Slack channel. Can optionally reply in a thread.",
         "func": send_message,
+        "args_schema": SendMessageSchema,
     },
     {
         "name": "slack_get_channel_history",
         "description": "Get recent messages from a Slack channel. Returns message history with timestamps and users.",
         "func": get_channel_history,
+        "args_schema": GetChannelHistorySchema,
     },
 ]
 
@@ -265,6 +307,7 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
+            args_schema=defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
@@ -290,6 +333,8 @@ def get_crewai_tools() -> list[Any]:
     for defn in TOOL_DEFINITIONS:
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
+        if "args_schema" in defn:
+            wrapped.args_schema = defn["args_schema"]
         tools.append(wrapped)
 
     return tools

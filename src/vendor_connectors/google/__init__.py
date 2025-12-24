@@ -1,17 +1,4 @@
-"""Google Cloud and Workspace Connector using jbcom ecosystem packages.
-
-This package provides Google operations organized into submodules:
-- workspace: Google Workspace (Admin Directory) user/group operations
-- cloud: Google Cloud Platform resource management
-- billing: Google Cloud Billing operations
-- services: Google Cloud service discovery (GKE, Compute, SQL, etc.)
-
-Usage:
-    from vendor_connectors.google import GoogleConnector
-
-    connector = GoogleConnector(service_account_info=...)
-    users = connector.list_users()
-"""
+"""Google Cloud and Workspace Connector using jbcom ecosystem packages."""
 
 from __future__ import annotations
 
@@ -19,10 +6,11 @@ import json
 from collections.abc import Sequence
 from typing import Any, Optional
 
-from directed_inputs_class import DirectedInputsClass
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from lifecyclelogging import Logging
+
+from vendor_connectors.base import VendorConnectorBase
 
 # Default Google scopes
 DEFAULT_SCOPES = [
@@ -36,7 +24,7 @@ DEFAULT_SCOPES = [
 ]
 
 
-class GoogleConnector(DirectedInputsClass):
+class GoogleConnector(VendorConnectorBase):
     """Google Cloud and Workspace base connector.
 
     This is the base connector class providing:
@@ -63,11 +51,9 @@ class GoogleConnector(DirectedInputsClass):
             scopes: OAuth scopes to request. Defaults to common scopes.
             subject: Email to impersonate via domain-wide delegation.
             logger: Optional Logging instance.
-            **kwargs: Additional arguments passed to DirectedInputsClass.
+            **kwargs: Additional arguments passed to VendorConnectorBase.
         """
-        super().__init__(**kwargs)
-        self.logging = logger or Logging(logger_name="GoogleConnector")
-        self.logger = self.logging.logger
+        super().__init__(logger=logger, **kwargs)
 
         self.scopes = scopes or DEFAULT_SCOPES
         self.subject = subject
@@ -78,7 +64,11 @@ class GoogleConnector(DirectedInputsClass):
 
         # Parse if string
         if isinstance(service_account_info, str):
-            service_account_info = json.loads(service_account_info)
+            try:
+                service_account_info = json.loads(service_account_info)
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Failed to parse GOOGLE_SERVICE_ACCOUNT JSON: {e}")
+                raise
 
         self.service_account_info = service_account_info
         self._credentials: Optional[service_account.Credentials] = None
@@ -561,7 +551,19 @@ class GoogleConnectorFull(
     pass
 
 
+from vendor_connectors.google.tools import (
+    get_crewai_tools,
+    get_langchain_tools,
+    get_strands_tools,
+    get_tools,
+)
+
 __all__ = [
+    # Tools
+    "get_tools",
+    "get_langchain_tools",
+    "get_crewai_tools",
+    "get_strands_tools",
     # Core connector classes
     "GoogleConnector",
     "GoogleConnectorFull",

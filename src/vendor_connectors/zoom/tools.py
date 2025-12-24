@@ -24,6 +24,41 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Input Schemas
+# =============================================================================
+
+
+class ListUsersSchema(BaseModel):
+    """Schema for listing Zoom users."""
+
+    max_results: int = Field(100, description="Maximum number of users to return.")
+
+
+class GetUserSchema(BaseModel):
+    """Schema for getting a Zoom user."""
+
+    user_id: str = Field(..., description="User ID or email address.")
+
+
+class ListMeetingsSchema(BaseModel):
+    """Schema for listing Zoom meetings."""
+
+    user_id: str = Field(..., description="User ID or email address.")
+    meeting_type: str = Field(
+        "scheduled", description="Type of meetings (scheduled, live, upcoming, previous_meetings)."
+    )
+    max_results: int = Field(100, description="Maximum number of meetings to return.")
+
+
+class GetMeetingSchema(BaseModel):
+    """Schema for getting a Zoom meeting."""
+
+    meeting_id: str = Field(..., description="Meeting ID.")
+
+
 # =============================================================================
 # Tool Implementation Functions
 # =============================================================================
@@ -167,21 +202,25 @@ TOOL_DEFINITIONS = [
         "name": "zoom_list_users",
         "description": "List all Zoom users. Returns user details including email, id, name, and status.",
         "func": list_users,
+        "args_schema": ListUsersSchema,
     },
     {
         "name": "zoom_get_user",
         "description": "Get details of a specific Zoom user by ID or email. Returns comprehensive user information.",
         "func": get_user,
+        "args_schema": GetUserSchema,
     },
     {
         "name": "zoom_list_meetings",
         "description": "List meetings for a specific user. Returns meeting details including id, topic, start time, and join URL.",
         "func": list_meetings,
+        "args_schema": ListMeetingsSchema,
     },
     {
         "name": "zoom_get_meeting",
         "description": "Get details of a specific meeting by meeting ID. Returns comprehensive meeting information.",
         "func": get_meeting,
+        "args_schema": GetMeetingSchema,
     },
 ]
 
@@ -192,12 +231,19 @@ TOOL_DEFINITIONS = [
 
 
 def get_langchain_tools() -> list[Any]:
-    """Get all tools as LangChain StructuredTools."""
+    """Get all Zoom tools as LangChain StructuredTools.
+
+    Returns:
+        List of LangChain StructuredTool objects.
+
+    Raises:
+        ImportError: If langchain-core is not installed.
+    """
     try:
         from langchain_core.tools import StructuredTool
     except ImportError as e:
         raise ImportError(
-            "langchain-core is required for LangChain tools.\nInstall with: pip install langchain-core"
+            "langchain-core is required for LangChain tools.\nInstall with: pip install vendor-connectors[langchain]"
         ) from e
 
     return [
@@ -205,13 +251,21 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
+            args_schema=defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
 
 
 def get_crewai_tools() -> list[Any]:
-    """Get all tools as CrewAI tools."""
+    """Get all Zoom tools as CrewAI tools.
+
+    Returns:
+        List of CrewAI BaseTool objects.
+
+    Raises:
+        ImportError: If crewai is not installed.
+    """
     try:
         from crewai.tools import tool as crewai_tool
     except ImportError as e:
@@ -223,18 +277,24 @@ def get_crewai_tools() -> list[Any]:
     for defn in TOOL_DEFINITIONS:
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
+        if "args_schema" in defn:
+            wrapped.args_schema = defn["args_schema"]
         tools.append(wrapped)
 
     return tools
 
 
 def get_strands_tools() -> list[Any]:
-    """Get all tools as plain Python functions for AWS Strands."""
+    """Get all Zoom tools as plain Python functions for AWS Strands.
+
+    Returns:
+        List of callable functions.
+    """
     return [defn["func"] for defn in TOOL_DEFINITIONS]
 
 
 def get_tools(framework: str = "auto") -> list[Any]:
-    """Get tools for the specified or auto-detected framework.
+    """Get Zoom tools for the specified or auto-detected framework.
 
     Args:
         framework: Framework to use. Options:
@@ -245,7 +305,11 @@ def get_tools(framework: str = "auto") -> list[Any]:
             - "functions": Force plain functions (alias for strands)
 
     Returns:
-        List of tools in the appropriate format.
+        List of tools in the appropriate format for the framework.
+
+    Raises:
+        ImportError: If the requested framework is not installed.
+        ValueError: If an unknown framework is specified.
     """
     from vendor_connectors._compat import is_available
 
@@ -263,7 +327,7 @@ def get_tools(framework: str = "auto") -> list[Any]:
     if framework in ("strands", "functions"):
         return get_strands_tools()
 
-    raise ValueError(f"Unknown framework: {framework}")
+    raise ValueError(f"Unknown framework: {framework}. Options: auto, langchain, crewai, strands, functions")
 
 
 # =============================================================================
@@ -271,13 +335,16 @@ def get_tools(framework: str = "auto") -> list[Any]:
 # =============================================================================
 
 __all__ = [
+    # Framework-specific getters
     "get_tools",
     "get_langchain_tools",
     "get_crewai_tools",
     "get_strands_tools",
-    "TOOL_DEFINITIONS",
+    # Raw functions
     "list_users",
     "get_user",
     "list_meetings",
     "get_meeting",
+    # Tool metadata
+    "TOOL_DEFINITIONS",
 ]

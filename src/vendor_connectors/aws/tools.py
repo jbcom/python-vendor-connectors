@@ -3,31 +3,46 @@
 This module provides tools for AWS operations that work with multiple
 AI agent frameworks. The core functions are framework-agnostic Python functions,
 with native wrappers for each supported framework.
-
-Supported Frameworks:
-- LangChain (via langchain-core) - get_langchain_tools()
-- CrewAI - get_crewai_tools()
-- AWS Strands - get_strands_tools() (plain functions)
-- Auto-detection - get_tools() picks the best available
-
-Tools provided:
-- list_secrets: List secrets in AWS Secrets Manager
-- get_secret: Get a secret value from AWS Secrets Manager
-- list_s3_buckets: List S3 buckets in the account
-- list_s3_objects: List objects in an S3 bucket
-- get_s3_object: Get an object from S3
-- list_accounts: List AWS accounts in the organization
-- list_sso_users: List users in IAM Identity Center
-- list_sso_groups: List groups in IAM Identity Center
-
-Usage:
-    from vendor_connectors.aws.tools import get_tools
-    tools = get_tools()  # Returns best format for installed framework
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Input Schemas
+# =============================================================================
+
+
+class ListSecretsSchema(BaseModel):
+    """Schema for listing AWS secrets."""
+
+    prefix: str = Field("", description="Filter secrets by name prefix.")
+    max_results: int = Field(100, description="Maximum number of secrets to return.")
+
+
+class GetSecretSchema(BaseModel):
+    """Schema for getting an AWS secret."""
+
+    secret_name: str = Field(..., description="Name or ARN of the secret.")
+
+
+class ListS3ObjectsSchema(BaseModel):
+    """Schema for listing S3 objects."""
+
+    bucket_name: str = Field(..., description="Name of the S3 bucket.")
+    prefix: str = Field("", description="Filter objects by key prefix.")
+    max_keys: int = Field(100, description="Maximum number of objects to return.")
+
+
+class GetS3ObjectSchema(BaseModel):
+    """Schema for getting an S3 object."""
+
+    bucket_name: str = Field(..., description="Name of the S3 bucket.")
+    key: str = Field(..., description="Object key (path).")
+
 
 # =============================================================================
 # Tool Implementation Functions
@@ -291,11 +306,13 @@ TOOL_DEFINITIONS = [
         "name": "aws_list_secrets",
         "description": "List secrets in AWS Secrets Manager. Returns secret names, ARNs, and metadata.",
         "func": list_secrets,
+        "args_schema": ListSecretsSchema,
     },
     {
         "name": "aws_get_secret",
         "description": "Get a secret value from AWS Secrets Manager by name or ARN.",
         "func": get_secret,
+        "args_schema": GetSecretSchema,
     },
     {
         "name": "aws_list_s3_buckets",
@@ -306,11 +323,13 @@ TOOL_DEFINITIONS = [
         "name": "aws_list_s3_objects",
         "description": "List objects in an S3 bucket with optional prefix filter.",
         "func": list_s3_objects,
+        "args_schema": ListS3ObjectsSchema,
     },
     {
         "name": "aws_get_s3_object",
         "description": "Get an object from S3. Returns metadata and content for text files.",
         "func": get_s3_object,
+        "args_schema": GetS3ObjectSchema,
     },
     {
         "name": "aws_list_accounts",
@@ -356,6 +375,7 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
+            args_schema=defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
@@ -381,6 +401,8 @@ def get_crewai_tools() -> list[Any]:
     for defn in TOOL_DEFINITIONS:
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
+        if "args_schema" in defn:
+            wrapped.args_schema = defn["args_schema"]
         tools.append(wrapped)
 
     return tools

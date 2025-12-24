@@ -23,6 +23,28 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Input Schemas
+# =============================================================================
+
+
+class ListSecretsSchema(BaseModel):
+    """Schema for listing Vault secrets."""
+
+    root_path: str = Field("/", description="Starting path for listing (default: '/').")
+    mount_point: str = Field("secret", description="KV engine mount point (default: 'secret').")
+    max_depth: int = Field(10, description="Maximum directory depth to traverse (default: 10).")
+
+
+class ReadSecretSchema(BaseModel):
+    """Schema for reading a Vault secret."""
+
+    path: str = Field(..., description="Path to the secret.")
+    mount_point: str = Field("secret", description="KV engine mount point (default: 'secret').")
+
+
 # =============================================================================
 # Tool Implementation Functions
 # =============================================================================
@@ -105,11 +127,13 @@ TOOL_DEFINITIONS = [
         "name": "vault_list_secrets",
         "description": "List secrets recursively from Vault KV v2 engine. Returns secret paths and their data.",
         "func": list_secrets,
+        "args_schema": ListSecretsSchema,
     },
     {
         "name": "vault_read_secret",
         "description": "Read a single secret from Vault KV v2 by path. Returns the secret data.",
         "func": read_secret,
+        "args_schema": ReadSecretSchema,
     },
 ]
 
@@ -140,6 +164,7 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
+            args_schema=defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
@@ -165,6 +190,8 @@ def get_crewai_tools() -> list[Any]:
     for defn in TOOL_DEFINITIONS:
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
+        if "args_schema" in defn:
+            wrapped.args_schema = defn["args_schema"]
         tools.append(wrapped)
 
     return tools
