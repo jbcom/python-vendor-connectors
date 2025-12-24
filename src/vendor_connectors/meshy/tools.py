@@ -3,44 +3,52 @@
 This module provides tools for Meshy AI operations that work with multiple
 AI agent frameworks. The core functions are framework-agnostic Python functions,
 with native wrappers for each supported framework.
-
-Supported Frameworks:
-- LangChain (via langchain-core) - get_langchain_tools()
-- CrewAI - get_crewai_tools()
-- AWS Strands - get_strands_tools() (plain functions)
-- Auto-detection - get_tools() picks the best available
-
-Tools provided:
-- text3d_generate: Generate 3D models from text descriptions
-- image3d_generate: Generate 3D models from images
-- rig_model: Add skeleton/rig to static models
-- apply_animation: Apply animations to rigged models
-- retexture_model: Change model textures
-- list_animations: List available animation catalog
-- check_task_status: Check Meshy task status
-- get_animation: Get specific animation details
-
-Usage (auto-detect):
-    from vendor_connectors.meshy.tools import get_tools
-    tools = get_tools()  # Returns best format for installed framework
-
-Usage (LangChain):
-    from vendor_connectors.meshy.tools import get_langchain_tools
-    tools = get_langchain_tools()
-    agent = create_react_agent(llm, tools)
-
-Usage (CrewAI):
-    from vendor_connectors.meshy.tools import get_crewai_tools
-    agent = Agent(role="3D Artist", tools=get_crewai_tools())
-
-Usage (Strands/plain functions):
-    from vendor_connectors.meshy.tools import get_strands_tools
-    # Returns plain Python functions with type hints
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Input Schemas
+# =============================================================================
+
+
+class Text3DGenerateSchema(BaseModel):
+    """Schema for text-to-3D generation."""
+
+    prompt: str = Field(..., description="Detailed text description of the 3D model (max 600 chars).")
+    art_style: str = Field("realistic", description="One of: realistic, sculpture.")
+    negative_prompt: str = Field("", description="Things to avoid in the generation.")
+    target_polycount: int = Field(30000, description="Target polygon count.")
+    enable_pbr: bool = Field(True, description="Enable PBR materials.")
+
+
+class Image3DGenerateSchema(BaseModel):
+    """Schema for image-to-3D generation."""
+
+    image_url: str = Field(..., description="URL to the source image.")
+    topology: str = Field("", description="Mesh topology ('quad' or 'triangle').")
+    target_polycount: int = Field(15000, description="Target polygon count.")
+    enable_pbr: bool = Field(True, description="Enable PBR materials.")
+
+
+class RigModelSchema(BaseModel):
+    """Schema for rigging a model."""
+
+    model_id: str = Field(..., description="Task ID of the static model to rig.")
+    wait: bool = Field(True, description="Whether to wait for completion.")
+
+
+class ApplyAnimationSchema(BaseModel):
+    """Schema for applying animation."""
+
+    model_id: str = Field(..., description="Task ID of the rigged model.")
+    animation_id: int = Field(..., description="Animation ID from the Meshy catalog.")
+    wait: bool = Field(True, description="Whether to wait for completion.")
+
 
 # =============================================================================
 # Tool Implementation Functions
@@ -369,6 +377,7 @@ TOOL_DEFINITIONS = [
             "Provide a detailed prompt describing the model. Returns the task_id, "
             "status, model_url, and thumbnail_url on success."
         ),
+        "args_schema": Text3DGenerateSchema,
     },
     {
         "func": image3d_generate,
@@ -378,6 +387,7 @@ TOOL_DEFINITIONS = [
             "Provide a URL to the source image. Returns the task_id, "
             "status, model_url, and thumbnail_url on success."
         ),
+        "args_schema": Image3DGenerateSchema,
     },
     {
         "func": rig_model,
@@ -387,6 +397,7 @@ TOOL_DEFINITIONS = [
             "you can apply animations. Takes the model's task ID and returns "
             "a new task ID for the rigging operation."
         ),
+        "args_schema": RigModelSchema,
     },
     {
         "func": apply_animation,
@@ -395,6 +406,7 @@ TOOL_DEFINITIONS = [
             "Apply an animation to a rigged 3D model. Use list_animations to "
             "see available animation IDs. The model must be rigged first."
         ),
+        "args_schema": ApplyAnimationSchema,
     },
     {
         "func": retexture_model,
@@ -458,6 +470,7 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
+            args_schema=defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
@@ -484,6 +497,8 @@ def get_crewai_tools() -> list[Any]:
         # Apply @tool decorator with the function name
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
+        if "args_schema" in defn:
+            wrapped.args_schema = defn["args_schema"]
         tools.append(wrapped)
 
     return tools

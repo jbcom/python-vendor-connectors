@@ -19,7 +19,7 @@ import json
 from collections.abc import Sequence
 from typing import Any, Optional
 
-from directed_inputs_class import DirectedInputsClass
+from vendor_connectors.base import VendorConnectorBase
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from lifecyclelogging import Logging
@@ -36,7 +36,10 @@ DEFAULT_SCOPES = [
 ]
 
 
-class GoogleConnector(DirectedInputsClass):
+from vendor_connectors.base import VendorConnectorBase
+
+
+class GoogleConnector(VendorConnectorBase):
     """Google Cloud and Workspace base connector.
 
     This is the base connector class providing:
@@ -63,11 +66,9 @@ class GoogleConnector(DirectedInputsClass):
             scopes: OAuth scopes to request. Defaults to common scopes.
             subject: Email to impersonate via domain-wide delegation.
             logger: Optional Logging instance.
-            **kwargs: Additional arguments passed to DirectedInputsClass.
+            **kwargs: Additional arguments passed to VendorConnectorBase.
         """
-        super().__init__(**kwargs)
-        self.logging = logger or Logging(logger_name="GoogleConnector")
-        self.logger = self.logging.logger
+        super().__init__(logger=logger, **kwargs)
 
         self.scopes = scopes or DEFAULT_SCOPES
         self.subject = subject
@@ -561,7 +562,19 @@ class GoogleConnectorFull(
     pass
 
 
+from vendor_connectors.google.tools import (
+    get_crewai_tools,
+    get_langchain_tools,
+    get_strands_tools,
+    get_tools,
+)
+
 __all__ = [
+    # Tools
+    "get_tools",
+    "get_langchain_tools",
+    "get_crewai_tools",
+    "get_strands_tools",
     # Core connector classes
     "GoogleConnector",
     "GoogleConnectorFull",

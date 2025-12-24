@@ -39,8 +39,19 @@ from __future__ import annotations
 
 from vendor_connectors.meshy import animate, base, image3d, retexture, rigging, text3d
 from vendor_connectors.meshy.base import MeshyAPIError, RateLimitError
+from vendor_connectors.meshy.tools import (
+    get_crewai_tools,
+    get_langchain_tools,
+    get_strands_tools,
+    get_tools,
+)
 
 __all__ = [
+    # Tools
+    "get_tools",
+    "get_langchain_tools",
+    "get_crewai_tools",
+    "get_strands_tools",
     # Errors
     "MeshyAPIError",
     "RateLimitError",

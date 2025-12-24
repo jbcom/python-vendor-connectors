@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import hvac
-from directed_inputs_class import DirectedInputsClass
+from vendor_connectors.base import VendorConnectorBase
 from extended_data_types import is_nothing
 from hvac.exceptions import VaultError
 from lifecyclelogging import Logging
@@ -20,7 +20,10 @@ VAULT_SECRET_ID_ENV_VAR = "VAULT_SECRET_ID"
 VAULT_APPROLE_PATH_ENV_VAR = "VAULT_APPROLE_PATH"
 
 
-class VaultConnector(DirectedInputsClass):
+from vendor_connectors.base import VendorConnectorBase
+
+
+class VaultConnector(VendorConnectorBase):
     """Vault connector with token and AppRole authentication."""
 
     def __init__(
@@ -31,9 +34,7 @@ class VaultConnector(DirectedInputsClass):
         logger: Optional[Logging] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.logging = logger or Logging(logger_name="VaultConnector")
-        self.logger = self.logging.logger
+        super().__init__(logger=logger, **kwargs)
 
         self.vault_url = vault_url
         self.vault_namespace = vault_namespace
@@ -489,3 +490,20 @@ class VaultConnector(DirectedInputsClass):
 
         self.logger.info(f"Generated AWS credentials for role {role_name}")
         return credentials
+
+from vendor_connectors.vault.tools import (
+    get_crewai_tools,
+    get_langchain_tools,
+    get_strands_tools,
+    get_tools,
+)
+
+__all__ = [
+    # Tools
+    "get_tools",
+    "get_langchain_tools",
+    "get_crewai_tools",
+    "get_strands_tools",
+    # Core connector
+    "VaultConnector",
+]

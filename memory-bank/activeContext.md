@@ -158,3 +158,27 @@ pip install langchain-google-genai  # For Gemini
 
 ---
 *Last updated: 2025-12-07*
+
+## Session: 2025-12-24 (AI Tools for All Connectors)
+
+### Completed
+- **Refactored all connectors** to inherit from `VendorConnectorBase`:
+  - `SlackConnector`, `ZoomConnector`, `VaultConnector`, `GoogleConnector`, `GithubConnector`
+- **Updated connector constructors** to use `self.get_input` for transparent credential loading.
+- **Implemented AI Tools** for all connectors with Pydantic schemas:
+  - `slack/tools.py`: send message, list users, list channels
+  - `zoom/tools.py`: list users, create user, remove user
+  - `vault/tools.py`: read secret, write secret, list secrets, generate AWS credentials
+  - `google/tools.py`: list users, list projects, create project, list folders
+  - `github/tools.py`: get file, update file, list org members, list repositories
+- **Standardized existing tools** (`aws`, `meshy`) to use Pydantic models for input validation.
+- **Updated all __init__.py files** to export `get_tools()`, `get_langchain_tools()`, `get_crewai_tools()`, and `get_strands_tools()`.
+- **Verified changes** with `ruff` linting.
+
+### Key Patterns Reinforced
+1. **Three-Interface Pattern**: Every connector now provides Python API and AI Framework Tools.
+2. **Pydantic Schemas**: All AI tools now use explicit Pydantic models for input validation and schema generation.
+3. **VendorConnectorBase**: Now used as the standard base for all connectors in the library.
+
+---
+*Last updated: 2025-12-24*
