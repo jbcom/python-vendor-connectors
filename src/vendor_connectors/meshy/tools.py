@@ -42,6 +42,85 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Pydantic Schemas for Tool Inputs
+# =============================================================================
+
+
+class Text3dGenerateSchema(BaseModel):
+    """Pydantic schema for the text3d_generate tool."""
+
+    prompt: str = Field(..., description="Detailed text description of the 3D model (max 600 chars)")
+    art_style: str = Field(
+        "realistic",
+        description="One of: realistic, sculpture. For 'sculpture', set enable_pbr=False.",
+    )
+    negative_prompt: str = Field("", description="Things to avoid in the generation")
+    target_polycount: int = Field(30000, description="Target polygon count")
+    enable_pbr: bool = Field(
+        True,
+        description="Enable PBR materials. API defaults to False; we default to True for better realistic renders. Set False for sculpture.",
+    )
+
+
+class Image3dGenerateSchema(BaseModel):
+    """Pydantic schema for the image3d_generate tool."""
+
+    image_url: str = Field(..., description="URL to the source image")
+    topology: str = Field("", description='Mesh topology ("quad" or "triangle"), empty for default')
+    target_polycount: int = Field(15000, description="Target polygon count")
+    enable_pbr: bool = Field(True, description="Enable PBR materials")
+
+
+class RigModelSchema(BaseModel):
+    """Pydantic schema for the rig_model tool."""
+
+    model_id: str = Field(..., description="Task ID of the static model to rig")
+    wait: bool = Field(True, description="Whether to wait for completion (default True)")
+
+
+class ApplyAnimationSchema(BaseModel):
+    """Pydantic schema for the apply_animation tool."""
+
+    model_id: str = Field(..., description="Task ID of the rigged model")
+    animation_id: int = Field(..., description="Animation ID from the Meshy catalog (integer)")
+    wait: bool = Field(True, description="Whether to wait for completion (default True)")
+
+
+class RetextureModelSchema(BaseModel):
+    """Pydantic schema for the retexture_model tool."""
+
+    model_id: str = Field(..., description="Task ID of the model to retexture")
+    texture_prompt: str = Field(..., description="Description of the new texture/appearance")
+    enable_pbr: bool = Field(True, description="Enable PBR materials")
+    wait: bool = Field(True, description="Whether to wait for completion (default True)")
+
+
+class ListAnimationsSchema(BaseModel):
+    """Pydantic schema for the list_animations tool."""
+
+    category: str = Field("", description="Optional category filter (Fighting, WalkAndRun, etc.)")
+    limit: int = Field(50, description="Maximum number of results")
+
+
+class CheckTaskStatusSchema(BaseModel):
+    """Pydantic schema for the check_task_status tool."""
+
+    task_id: str = Field(..., description="The Meshy task ID")
+    task_type: str = Field(
+        "text-to-3d",
+        description="Task type (text-to-3d, rigging, animation, retexture)",
+    )
+
+
+class GetAnimationSchema(BaseModel):
+    """Pydantic schema for the get_animation tool."""
+
+    animation_id: int = Field(..., description="The animation ID number")
+
+
 # =============================================================================
 # Tool Implementation Functions
 # =============================================================================
@@ -369,6 +448,7 @@ TOOL_DEFINITIONS = [
             "Provide a detailed prompt describing the model. Returns the task_id, "
             "status, model_url, and thumbnail_url on success."
         ),
+        "schema": Text3dGenerateSchema,
     },
     {
         "func": image3d_generate,
@@ -378,6 +458,7 @@ TOOL_DEFINITIONS = [
             "Provide a URL to the source image. Returns the task_id, "
             "status, model_url, and thumbnail_url on success."
         ),
+        "schema": Image3dGenerateSchema,
     },
     {
         "func": rig_model,
@@ -387,6 +468,7 @@ TOOL_DEFINITIONS = [
             "you can apply animations. Takes the model's task ID and returns "
             "a new task ID for the rigging operation."
         ),
+        "schema": RigModelSchema,
     },
     {
         "func": apply_animation,
@@ -395,6 +477,7 @@ TOOL_DEFINITIONS = [
             "Apply an animation to a rigged 3D model. Use list_animations to "
             "see available animation IDs. The model must be rigged first."
         ),
+        "schema": ApplyAnimationSchema,
     },
     {
         "func": retexture_model,
@@ -403,6 +486,7 @@ TOOL_DEFINITIONS = [
             "Apply new textures to an existing 3D model. Great for creating "
             "color variants or material changes without regenerating the mesh."
         ),
+        "schema": RetextureModelSchema,
     },
     {
         "func": list_animations,
@@ -412,6 +496,7 @@ TOOL_DEFINITIONS = [
             "Optionally filter by category. Returns animation IDs and names "
             "that can be used with apply_animation."
         ),
+        "schema": ListAnimationsSchema,
     },
     {
         "func": check_task_status,
@@ -421,6 +506,7 @@ TOOL_DEFINITIONS = [
             "(pending, processing, succeeded, failed), progress percentage, "
             "and model URL if complete."
         ),
+        "schema": CheckTaskStatusSchema,
     },
     {
         "func": get_animation,
@@ -428,6 +514,7 @@ TOOL_DEFINITIONS = [
         "description": (
             "Get details of a specific animation by ID, including name, category, subcategory, and preview URL."
         ),
+        "schema": GetAnimationSchema,
     },
 ]
 
