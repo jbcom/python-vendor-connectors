@@ -182,3 +182,6 @@ pip install langchain-google-genai  # For Gemini
 
 ---
 *Last updated: 2025-12-24*
+## Session: 2025-12-24
+- Updated `directed-inputs-class` dependency to semver constraint `>=0.9.0,<1.0.0` in `pyproject.toml`
+- Updated `requires-python` to `>=3.10` and adjusted classifiers to resolve dependency conflicts with `crewai`
