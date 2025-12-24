@@ -1,4 +1,5 @@
 """Tests for vendor_connectors.ai_tools module."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field

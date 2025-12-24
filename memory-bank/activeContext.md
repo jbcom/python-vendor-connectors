@@ -156,5 +156,24 @@ pip install langchain-google-genai  # For Gemini
 - [ ] Create sub-issues for other connector AI tooling
 - [ ] Update GitHub Projects
 
+## Session: 2025-12-24 (AI Tools & CI Fixes)
+
+### Completed
+- **Fixed CI Failures in PR #24**:
+  - Resolved code formatting issues using Ruff.
+  - Restored backward compatibility in `VendorConnectorBase` by adding aliases for `get_mcp_tool_definitions` and `handle_mcp_tool_call`.
+  - Improved `get_ai_tool_definitions` to use the standard `parameters` key instead of `inputSchema` for AI tool definitions.
+  - Fixed `pyproject.toml` to correctly require Python 3.10+ (due to `crewai` dependency).
+  - Updated `tox.ini` and Ruff/Mypy target versions to align with the Python 3.10+ requirement.
+  - Fixed type hints and added assertions in `meshy/tools.py` to resolve Mypy warnings in new tool implementations.
+
+### Key Patterns Established
+1. **AI Tool Compatibility**: Use `parameters` for Vercel AI SDK / OpenAI and `inputSchema` for MCP.
+2. **Python 3.10+**: Minimum version enforced for the entire package to support modern AI frameworks.
+
+### Next Steps
+- [ ] Merge PR #24 after CI passes.
+- [ ] Implement similar Pydantic schemas for AWS and Google Cloud tools.
+
 ---
-*Last updated: 2025-12-07*
+*Last updated: 2025-12-24*

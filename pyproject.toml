@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "vendor-connectors"
 version = "0.2.0"
 description = "Universal vendor connectors with transparent secret management, including Cursor AI agents, Anthropic Claude, and Meshy AI for 3D assets"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 readme = "README.md"
 keywords = ["aws", "gcp", "github", "slack", "vault", "zoom", "meshy", "3d", "connectors"]
@@ -17,7 +17,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -299,7 +298,7 @@ exclude_lines = [
 ]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
@@ -313,7 +312,7 @@ strict_equality = true
 ignore_missing_imports = true
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 120
 
 [tool.ruff.lint]

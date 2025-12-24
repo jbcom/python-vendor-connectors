@@ -370,14 +370,14 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
         return tools
 
     # -------------------------------------------------------------------------
-    # AI Tool Definition Helpers
+    # AI Tool & MCP Definition Helpers
     # -------------------------------------------------------------------------
 
     def get_ai_tool_definitions(self) -> list[dict[str, Any]]:
-        """Get tool definitions in Vercel AI SDK-compatible format.
+        """Get tool definitions in Vercel AI SDK / OpenAI format.
 
         Returns:
-            List of AI tool definition dicts
+            List of AI tool definition dicts with 'parameters' key.
         """
         import inspect
 
@@ -420,10 +420,22 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
                 {
                     "name": name,
                     "description": func.__doc__ or f"Tool: {name}",
-                    "inputSchema": input_schema,
+                    "parameters": input_schema,
                 }
             )
 
+        return definitions
+
+    def get_mcp_tool_definitions(self) -> list[dict[str, Any]]:
+        """Get tool definitions in MCP format.
+
+        Returns:
+            List of MCP tool definition dicts with 'inputSchema' key.
+        """
+        definitions = self.get_ai_tool_definitions()
+        for d in definitions:
+            # MCP uses 'inputSchema' instead of 'parameters'
+            d["inputSchema"] = d.pop("parameters")
         return definitions
 
     def handle_ai_tool_call(self, name: str, arguments: dict[str, Any]) -> Any:
@@ -442,3 +454,7 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
 
         func = self._tool_functions[name]
         return func(**arguments)
+
+    def handle_mcp_tool_call(self, name: str, arguments: dict[str, Any]) -> Any:
+        """Handle an MCP tool call (backward compatibility alias)."""
+        return self.handle_ai_tool_call(name, arguments)

@@ -191,6 +191,11 @@ def text3d_generate(
         wait=True,
     )
 
+    # When wait=True, generate returns a Text3DResult object
+    from vendor_connectors.meshy.models import Text3DResult
+
+    assert isinstance(result, Text3DResult)
+
     fields = _extract_result_fields(result)
     return {
         "task_id": result.id,
@@ -216,6 +221,7 @@ def image3d_generate(
         Dict with task_id, status, model_url, and thumbnail_url
     """
     from vendor_connectors.meshy import image3d
+    from vendor_connectors.meshy.models import Image3DResult
 
     result = image3d.generate(
         image_url,
@@ -224,6 +230,8 @@ def image3d_generate(
         enable_pbr=enable_pbr,
         wait=True,
     )
+
+    assert isinstance(result, Image3DResult)
 
     fields = _extract_result_fields(result)
     return {
@@ -243,10 +251,12 @@ def rig_model(model_id: str, wait: bool = True) -> dict[str, Any]:
         Dict with task_id and status
     """
     from vendor_connectors.meshy import rigging
+    from vendor_connectors.meshy.models import RiggingResult
 
     result = rigging.rig(model_id, wait=wait)
 
     if wait:
+        assert isinstance(result, RiggingResult)
         return {
             "task_id": result.id,
             "status": result.status.value if hasattr(result.status, "value") else str(result.status),
@@ -254,7 +264,7 @@ def rig_model(model_id: str, wait: bool = True) -> dict[str, Any]:
         }
 
     return {
-        "task_id": result,  # task_id string when wait=False
+        "task_id": str(result),  # task_id string when wait=False
         "status": "pending",
         "message": "Rigging task submitted",
     }
@@ -272,10 +282,12 @@ def apply_animation(model_id: str, animation_id: int, wait: bool = True) -> dict
         Dict with task_id, status, and glb_url
     """
     from vendor_connectors.meshy import animate
+    from vendor_connectors.meshy.models import AnimationResult
 
     result = animate.apply(model_id, int(animation_id), wait=wait)
 
     if wait:
+        assert isinstance(result, AnimationResult)
         return {
             "task_id": result.id,
             "status": result.status.value if hasattr(result.status, "value") else str(result.status),
@@ -284,7 +296,7 @@ def apply_animation(model_id: str, animation_id: int, wait: bool = True) -> dict
         }
 
     return {
-        "task_id": result,  # task_id string when wait=False
+        "task_id": str(result),  # task_id string when wait=False
         "status": "pending",
         "message": "Animation task submitted",
     }
@@ -308,6 +320,7 @@ def retexture_model(
         Dict with task_id, status, and model_url
     """
     from vendor_connectors.meshy import retexture
+    from vendor_connectors.meshy.models import RetextureResult
 
     result = retexture.apply(
         model_id,
@@ -317,6 +330,7 @@ def retexture_model(
     )
 
     if wait:
+        assert isinstance(result, RetextureResult)
         return {
             "task_id": result.id,
             "status": result.status.value if hasattr(result.status, "value") else str(result.status),
@@ -325,7 +339,7 @@ def retexture_model(
         }
 
     return {
-        "task_id": result,  # task_id string when wait=False
+        "task_id": str(result),  # task_id string when wait=False
         "status": "pending",
         "message": "Retexture task submitted",
     }
@@ -392,7 +406,9 @@ def check_task_status(task_id: str, task_type: str = "text-to-3d") -> dict[str, 
         raise ValueError(f"Unknown task type: {task_type}")
 
     result = get_func(task_id)
-    status = result.status.value if hasattr(result.status, "value") else str(result.status)
+    # result is a Pydantic model with a status field
+    status_obj = getattr(result, "status", "unknown")
+    status = status_obj.value if hasattr(status_obj, "value") else str(status_obj)
 
     # Get model URL if available
     model_url = None
