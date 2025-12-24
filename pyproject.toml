@@ -248,7 +248,11 @@ all = [
 ]
 
 [project.scripts]
+vendor-connectors = "vendor_connectors.cli:main"
+vendor-connectors-mcp = "vendor_connectors.mcp:main"
+# Legacy - keeping for backwards compatibility  
 meshy-mcp = "vendor_connectors.meshy.mcp:main"
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vendor_connectors"]

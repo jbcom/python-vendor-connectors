@@ -582,3 +582,26 @@ __all__ = [
     "GCP_REQUIRED_ORGANIZATION_ROLES",
     "GCP_REQUIRED_ROLES",
 ]
+
+# Jules AI Agent
+from vendor_connectors.google.jules import (
+    JulesConnector,
+    JulesError,
+    Session,
+    SessionState,
+    Source,
+)
+
+__all__ = [
+    # Existing exports...
+    "GoogleConnector",
+    "GoogleCloudConnector", 
+    "GoogleWorkspaceConnector",
+    "GoogleBillingConnector",
+    # Jules exports
+    "JulesConnector",
+    "JulesError",
+    "Session",
+    "SessionState",
+    "Source",
+]
