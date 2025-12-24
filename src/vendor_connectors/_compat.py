@@ -40,6 +40,7 @@ PACKAGE_TO_EXTRA: dict[str, str] = {
     "crewai": "crewai",
     "strands": "strands",
     "mcp": "mcp",
+    "ai_sdk": "vercel-ai",
     # Features
     "fastapi": "webhooks",
     "uvicorn": "webhooks",
@@ -145,6 +146,7 @@ def detect_ai_frameworks() -> dict[str, bool]:
     return {
         "langchain": is_available("langchain_core"),
         "crewai": is_available("crewai"),
+        "vercel-ai": is_available("ai_sdk"),
         "strands": is_available("strands"),
         "mcp": is_available("mcp"),
     }

@@ -586,8 +586,7 @@ def get_vercel_ai_tools() -> list[Any]:
         from ai_sdk import tool
     except ImportError as e:
         raise ImportError(
-            "ai-sdk-python is required for Vercel AI tools.\n"
-            "Install with: pip install vendor-connectors[vercel-ai]"
+            "ai-sdk-python is required for Vercel AI tools.\nInstall with: pip install vendor-connectors[vercel-ai]"
         ) from e
 
     tools = []
@@ -667,9 +666,7 @@ def get_tools(framework: str = "auto") -> list[Any]:
     if framework in ("strands", "functions"):
         return get_strands_tools()
 
-    raise ValueError(
-        f"Unknown framework: {framework}. Options: auto, langchain, crewai, vercel-ai, strands, functions"
-    )
+    raise ValueError(f"Unknown framework: {framework}. Options: auto, langchain, crewai, vercel-ai, strands, functions")
 
 
 # =============================================================================

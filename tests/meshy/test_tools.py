@@ -11,6 +11,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from vendor_connectors._compat import is_available
+
 # Expected tools list - canonical reference for all Meshy tools
 EXPECTED_MESHY_TOOLS = {
     "text3d_generate",
@@ -373,7 +375,7 @@ class TestLangChainTools:
     """Tests for LangChain tools (optional dependency)."""
 
     @pytest.mark.skipif(
-        not pytest.importorskip("langchain_core", reason="langchain-core not installed"),
+        not is_available("langchain_core"),
         reason="langchain-core not installed",
     )
     def test_get_langchain_tools_returns_structured_tools(self):
@@ -411,7 +413,7 @@ class TestVercelAITools:
     """Tests for Vercel AI SDK tools integration (optional dependency)."""
 
     @pytest.mark.skipif(
-        not pytest.importorskip("ai_sdk", reason="ai-sdk-python not installed"),
+        not is_available("ai_sdk"),
         reason="ai-sdk-python not installed",
     )
     def test_get_vercel_ai_tools_returns_tools(self):
@@ -461,13 +463,14 @@ class TestAutoDetection:
             get_tools("invalid_framework")
 
     @pytest.mark.skipif(
-        not pytest.importorskip("ai_sdk", reason="ai-sdk-python not installed"),
+        not is_available("ai_sdk"),
         reason="ai-sdk-python not installed",
     )
     def test_get_tools_auto_detects_vercel_ai(self):
         """Test that get_tools auto-detects Vercel AI SDK."""
-        from vendor_connectors.meshy.tools import get_tools
         from ai_sdk.tool import Tool
+
+        from vendor_connectors.meshy.tools import get_tools
 
         with patch("vendor_connectors._compat.is_available") as mock_is_available:
             mock_is_available.side_effect = lambda pkg: pkg == "ai_sdk"
