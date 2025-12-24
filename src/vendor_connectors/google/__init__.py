@@ -1,17 +1,4 @@
-"""Google Cloud and Workspace Connector using jbcom ecosystem packages.
-
-This package provides Google operations organized into submodules:
-- workspace: Google Workspace (Admin Directory) user/group operations
-- cloud: Google Cloud Platform resource management
-- billing: Google Cloud Billing operations
-- services: Google Cloud service discovery (GKE, Compute, SQL, etc.)
-
-Usage:
-    from vendor_connectors.google import GoogleConnector
-
-    connector = GoogleConnector(service_account_info=...)
-    users = connector.list_users()
-"""
+"""Google Cloud and Workspace Connector using jbcom ecosystem packages."""
 
 from __future__ import annotations
 
@@ -19,10 +6,11 @@ import json
 from collections.abc import Sequence
 from typing import Any, Optional
 
-from vendor_connectors.base import VendorConnectorBase
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from lifecyclelogging import Logging
+
+from vendor_connectors.base import VendorConnectorBase
 
 # Default Google scopes
 DEFAULT_SCOPES = [
@@ -34,9 +22,6 @@ DEFAULT_SCOPES = [
     "https://www.googleapis.com/auth/admin.directory.group.readonly",
     "https://www.googleapis.com/auth/admin.directory.orgunit.readonly",
 ]
-
-
-from vendor_connectors.base import VendorConnectorBase
 
 
 class GoogleConnector(VendorConnectorBase):
@@ -79,7 +64,11 @@ class GoogleConnector(VendorConnectorBase):
 
         # Parse if string
         if isinstance(service_account_info, str):
-            service_account_info = json.loads(service_account_info)
+            try:
+                service_account_info = json.loads(service_account_info)
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Failed to parse GOOGLE_SERVICE_ACCOUNT JSON: {e}")
+                raise
 
         self.service_account_info = service_account_info
         self._credentials: Optional[service_account.Credentials] = None

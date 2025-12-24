@@ -7,10 +7,11 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import hvac
-from vendor_connectors.base import VendorConnectorBase
 from extended_data_types import is_nothing
 from hvac.exceptions import VaultError
 from lifecyclelogging import Logging
+
+from vendor_connectors.base import VendorConnectorBase
 
 # Default Vault settings
 VAULT_URL_ENV_VAR = "VAULT_ADDR"
@@ -18,9 +19,6 @@ VAULT_NAMESPACE_ENV_VAR = "VAULT_NAMESPACE"
 VAULT_ROLE_ID_ENV_VAR = "VAULT_ROLE_ID"
 VAULT_SECRET_ID_ENV_VAR = "VAULT_SECRET_ID"
 VAULT_APPROLE_PATH_ENV_VAR = "VAULT_APPROLE_PATH"
-
-
-from vendor_connectors.base import VendorConnectorBase
 
 
 class VaultConnector(VendorConnectorBase):
@@ -490,6 +488,7 @@ class VaultConnector(VendorConnectorBase):
 
         self.logger.info(f"Generated AWS credentials for role {role_name}")
         return credentials
+
 
 from vendor_connectors.vault.tools import (
     get_crewai_tools,

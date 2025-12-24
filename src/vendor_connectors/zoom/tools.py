@@ -1,7 +1,23 @@
 """AI framework tools for Zoom operations.
 
-This module provides tools for Zoom operations that work with multiple
-AI agent frameworks.
+This module provides tools for Zoom operations that work with
+multiple AI agent frameworks.
+
+Supported Frameworks:
+- LangChain (via langchain-core) - get_langchain_tools()
+- CrewAI - get_crewai_tools()
+- AWS Strands - get_strands_tools() (plain functions)
+- Auto-detection - get_tools() picks the best available
+
+Tools provided:
+- zoom_list_users: List all Zoom users
+- zoom_get_user: Get details of a specific user
+- zoom_list_meetings: List meetings for a user
+- zoom_get_meeting: Get details of a specific meeting
+
+Usage:
+    from vendor_connectors.zoom.tools import get_tools
+    tools = get_tools()  # Returns best format for installed framework
 """
 
 from __future__ import annotations
@@ -10,23 +26,38 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+
 # =============================================================================
 # Input Schemas
 # =============================================================================
 
 
-class CreateZoomUserSchema(BaseModel):
-    """Schema for creating a Zoom user."""
+class ListUsersSchema(BaseModel):
+    """Schema for listing Zoom users."""
 
-    email: str = Field(..., description="The email address of the user to create.")
-    first_name: str = Field(..., description="User's first name.")
-    last_name: str = Field(..., description="User's last name.")
+    max_results: int = Field(100, description="Maximum number of users to return.")
 
 
-class RemoveZoomUserSchema(BaseModel):
-    """Schema for removing a Zoom user."""
+class GetUserSchema(BaseModel):
+    """Schema for getting a Zoom user."""
 
-    email: str = Field(..., description="The email address of the user to remove.")
+    user_id: str = Field(..., description="User ID or email address.")
+
+
+class ListMeetingsSchema(BaseModel):
+    """Schema for listing Zoom meetings."""
+
+    user_id: str = Field(..., description="User ID or email address.")
+    meeting_type: str = Field(
+        "scheduled", description="Type of meetings (scheduled, live, upcoming, previous_meetings)."
+    )
+    max_results: int = Field(100, description="Maximum number of meetings to return.")
+
+
+class GetMeetingSchema(BaseModel):
+    """Schema for getting a Zoom meeting."""
+
+    meeting_id: str = Field(..., description="Meeting ID.")
 
 
 # =============================================================================
@@ -34,54 +65,133 @@ class RemoveZoomUserSchema(BaseModel):
 # =============================================================================
 
 
-def zoom_list_users() -> list[dict[str, Any]]:
-    """List all Zoom users in the account.
-
-    Returns:
-        List of user dictionaries.
-    """
-    from vendor_connectors.zoom import ZoomConnector
-
-    connector = ZoomConnector()
-    users = connector.get_zoom_users()
-    return list(users.values())
-
-
-def zoom_create_user(
-    email: str,
-    first_name: str,
-    last_name: str,
-) -> bool:
-    """Create a new Zoom user with a paid license.
+def list_users(
+    max_results: int = 100,
+) -> list[dict[str, Any]]:
+    """List all Zoom users.
 
     Args:
-        email: User email.
-        first_name: First name.
-        last_name: Last name.
+        max_results: Maximum number of users to return
 
     Returns:
-        True if successful, False otherwise.
+        List of users with their properties (email, id, first_name, last_name, type)
     """
     from vendor_connectors.zoom import ZoomConnector
 
     connector = ZoomConnector()
-    return connector.create_zoom_user(email=email, first_name=first_name, last_name=last_name)
+    users = connector.list_users()
+
+    # Transform to list format and limit results
+    result = []
+    for email, user_data in list(users.items())[:max_results]:
+        result.append(
+            {
+                "email": email,
+                "id": user_data.get("id", ""),
+                "first_name": user_data.get("first_name", ""),
+                "last_name": user_data.get("last_name", ""),
+                "type": user_data.get("type", ""),
+                "status": user_data.get("status", ""),
+            }
+        )
+
+    return result
 
 
-def zoom_remove_user(email: str) -> bool:
-    """Remove a Zoom user.
+def get_user(
+    user_id: str,
+) -> dict[str, Any]:
+    """Get details of a specific Zoom user.
 
     Args:
-        email: Email of the user to remove.
+        user_id: User ID or email address
 
     Returns:
-        True if successful.
+        User data including email, id, first_name, last_name, type, status
     """
     from vendor_connectors.zoom import ZoomConnector
 
     connector = ZoomConnector()
-    connector.remove_zoom_user(email=email)
-    return len(connector.errors) == 0
+    user_data = connector.get_user(user_id)
+
+    return {
+        "email": user_data.get("email", ""),
+        "id": user_data.get("id", ""),
+        "first_name": user_data.get("first_name", ""),
+        "last_name": user_data.get("last_name", ""),
+        "type": user_data.get("type", ""),
+        "status": user_data.get("status", ""),
+        "timezone": user_data.get("timezone", ""),
+        "pmi": user_data.get("pmi", ""),
+    }
+
+
+def list_meetings(
+    user_id: str,
+    meeting_type: str = "scheduled",
+    max_results: int = 100,
+) -> list[dict[str, Any]]:
+    """List meetings for a specific Zoom user.
+
+    Args:
+        user_id: User ID or email address
+        meeting_type: Type of meetings (scheduled, live, upcoming, previous_meetings)
+        max_results: Maximum number of meetings to return
+
+    Returns:
+        List of meetings with their properties (id, topic, start_time, duration, type)
+    """
+    from vendor_connectors.zoom import ZoomConnector
+
+    connector = ZoomConnector()
+    meetings = connector.list_meetings(user_id, meeting_type)
+
+    # Limit results
+    result = []
+    for meeting in meetings[:max_results]:
+        result.append(
+            {
+                "id": meeting.get("id", ""),
+                "uuid": meeting.get("uuid", ""),
+                "topic": meeting.get("topic", ""),
+                "start_time": meeting.get("start_time", ""),
+                "duration": meeting.get("duration", 0),
+                "type": meeting.get("type", ""),
+                "join_url": meeting.get("join_url", ""),
+            }
+        )
+
+    return result
+
+
+def get_meeting(
+    meeting_id: str,
+) -> dict[str, Any]:
+    """Get details of a specific Zoom meeting.
+
+    Args:
+        meeting_id: Meeting ID
+
+    Returns:
+        Meeting data including id, topic, start_time, duration, join_url, settings
+    """
+    from vendor_connectors.zoom import ZoomConnector
+
+    connector = ZoomConnector()
+    meeting_data = connector.get_meeting(meeting_id)
+
+    return {
+        "id": meeting_data.get("id", ""),
+        "uuid": meeting_data.get("uuid", ""),
+        "topic": meeting_data.get("topic", ""),
+        "start_time": meeting_data.get("start_time", ""),
+        "duration": meeting_data.get("duration", 0),
+        "timezone": meeting_data.get("timezone", ""),
+        "type": meeting_data.get("type", ""),
+        "join_url": meeting_data.get("join_url", ""),
+        "host_id": meeting_data.get("host_id", ""),
+        "host_email": meeting_data.get("host_email", ""),
+    }
 
 
 # =============================================================================
@@ -91,20 +201,27 @@ def zoom_remove_user(email: str) -> bool:
 TOOL_DEFINITIONS = [
     {
         "name": "zoom_list_users",
-        "description": "List all users in the Zoom account. Useful for auditing or finding users.",
-        "func": zoom_list_users,
+        "description": "List all Zoom users. Returns user details including email, id, name, and status.",
+        "func": list_users,
+        "args_schema": ListUsersSchema,
     },
     {
-        "name": "zoom_create_user",
-        "description": "Create a new Zoom user with a paid (Licensed) status.",
-        "func": zoom_create_user,
-        "args_schema": CreateZoomUserSchema,
+        "name": "zoom_get_user",
+        "description": "Get details of a specific Zoom user by ID or email. Returns comprehensive user information.",
+        "func": get_user,
+        "args_schema": GetUserSchema,
     },
     {
-        "name": "zoom_remove_user",
-        "description": "Remove a user from the Zoom account.",
-        "func": zoom_remove_user,
-        "args_schema": RemoveZoomUserSchema,
+        "name": "zoom_list_meetings",
+        "description": "List meetings for a specific user. Returns meeting details including id, topic, start time, and join URL.",
+        "func": list_meetings,
+        "args_schema": ListMeetingsSchema,
+    },
+    {
+        "name": "zoom_get_meeting",
+        "description": "Get details of a specific meeting by meeting ID. Returns comprehensive meeting information.",
+        "func": get_meeting,
+        "args_schema": GetMeetingSchema,
     },
 ]
 
@@ -115,11 +232,20 @@ TOOL_DEFINITIONS = [
 
 
 def get_langchain_tools() -> list[Any]:
-    """Get all Zoom tools as LangChain StructuredTools."""
+    """Get all Zoom tools as LangChain StructuredTools.
+
+    Returns:
+        List of LangChain StructuredTool objects.
+
+    Raises:
+        ImportError: If langchain-core is not installed.
+    """
     try:
         from langchain_core.tools import StructuredTool
     except ImportError as e:
-        raise ImportError("langchain-core is required for LangChain tools.") from e
+        raise ImportError(
+            "langchain-core is required for LangChain tools.\nInstall with: pip install vendor-connectors[langchain]"
+        ) from e
 
     return [
         StructuredTool.from_function(
@@ -133,11 +259,20 @@ def get_langchain_tools() -> list[Any]:
 
 
 def get_crewai_tools() -> list[Any]:
-    """Get all Zoom tools as CrewAI tools."""
+    """Get all Zoom tools as CrewAI tools.
+
+    Returns:
+        List of CrewAI BaseTool objects.
+
+    Raises:
+        ImportError: If crewai is not installed.
+    """
     try:
         from crewai.tools import tool as crewai_tool
     except ImportError as e:
-        raise ImportError("crewai is required for CrewAI tools.") from e
+        raise ImportError(
+            "crewai is required for CrewAI tools.\nInstall with: pip install vendor-connectors[crewai]"
+        ) from e
 
     tools = []
     for defn in TOOL_DEFINITIONS:
@@ -151,12 +286,32 @@ def get_crewai_tools() -> list[Any]:
 
 
 def get_strands_tools() -> list[Any]:
-    """Get all Zoom tools as plain Python functions."""
+    """Get all Zoom tools as plain Python functions for AWS Strands.
+
+    Returns:
+        List of callable functions.
+    """
     return [defn["func"] for defn in TOOL_DEFINITIONS]
 
 
 def get_tools(framework: str = "auto") -> list[Any]:
-    """Get Zoom tools for the specified or auto-detected framework."""
+    """Get Zoom tools for the specified or auto-detected framework.
+
+    Args:
+        framework: Framework to use. Options:
+            - "auto" (default): Auto-detect based on installed packages
+            - "langchain": Force LangChain StructuredTools
+            - "crewai": Force CrewAI tools
+            - "strands": Force plain functions for Strands
+            - "functions": Force plain functions (alias for strands)
+
+    Returns:
+        List of tools in the appropriate format for the framework.
+
+    Raises:
+        ImportError: If the requested framework is not installed.
+        ValueError: If an unknown framework is specified.
+    """
     from vendor_connectors._compat import is_available
 
     if framework == "auto":
@@ -173,16 +328,24 @@ def get_tools(framework: str = "auto") -> list[Any]:
     if framework in ("strands", "functions"):
         return get_strands_tools()
 
-    raise ValueError(f"Unknown framework: {framework}")
+    raise ValueError(f"Unknown framework: {framework}. Options: auto, langchain, crewai, strands, functions")
 
+
+# =============================================================================
+# Exports
+# =============================================================================
 
 __all__ = [
+    # Framework-specific getters
     "get_tools",
     "get_langchain_tools",
     "get_crewai_tools",
     "get_strands_tools",
-    "zoom_list_users",
-    "zoom_create_user",
-    "zoom_remove_user",
+    # Raw functions
+    "list_users",
+    "get_user",
+    "list_meetings",
+    "get_meeting",
+    # Tool metadata
     "TOOL_DEFINITIONS",
 ]

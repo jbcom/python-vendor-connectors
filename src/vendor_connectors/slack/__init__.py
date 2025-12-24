@@ -20,11 +20,12 @@ else:
             yield batch
 
 
-from vendor_connectors.base import VendorConnectorBase
 from extended_data_types import is_nothing, wrap_raw_data_for_export
 from lifecyclelogging import Logging
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import WebClient
+
+from vendor_connectors.base import VendorConnectorBase
 
 # Settings
 MAX_RETRY_TIMEOUT_SECONDS = 30
@@ -35,6 +36,7 @@ class SlackAPIError(RuntimeError):
 
     def __init__(self, response):
         self.response = response
+        self.status_code = response.status_code if hasattr(response, "status_code") else None
         super().__init__(f"Slack API error: {response}")
 
 
@@ -151,9 +153,6 @@ def get_rich_text_blocks(
         elements.append(element)
 
     return [{"type": "rich_text", "elements": elements}, get_divider()]
-
-
-from vendor_connectors.base import VendorConnectorBase
 
 
 class SlackConnector(VendorConnectorBase):
@@ -508,6 +507,7 @@ class SlackConnector(VendorConnectorBase):
             grouped[datum_id] = datum
 
         return grouped
+
 
 from vendor_connectors.slack.tools import (
     get_crewai_tools,

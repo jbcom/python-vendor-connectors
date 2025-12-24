@@ -25,11 +25,11 @@ jobs:
     name: Build package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
 
-      - uses: hynek/build-and-inspect-python-package@v2
+      - uses: hynek/build-and-inspect-python-package@d1b0f96a0a46b28c389aa982cfa69be61ea2dcbd # v2
         with:
           attest-build-provenance-github: false
 
@@ -53,14 +53,14 @@ jobs:
             tox-env: "py313"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
 
-      - uses: hynek/setup-cached-uv@v2
+      - uses: hynek/setup-cached-uv@2a4a9b893253e16cf11e6def5f774336af2f80bc # v2
 
       - name: Install tox
         run: uv tool install tox --with tox-uv --with tox-gh
@@ -73,13 +73,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: "3.13"
 
-      - uses: hynek/setup-cached-uv@v2
+      - uses: hynek/setup-cached-uv@2a4a9b893253e16cf11e6def5f774336af2f80bc # v2
 
       - name: Install tox
         run: uv tool install tox --with tox-uv --with tox-gh
@@ -98,7 +98,7 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -108,11 +108,11 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: "3.13"
 
-      - uses: hynek/setup-cached-uv@v2
+      - uses: hynek/setup-cached-uv@2a4a9b893253e16cf11e6def5f774336af2f80bc # v2
 
       - name: Install python-semantic-release
         run: uv tool install python-semantic-release
@@ -136,21 +136,21 @@ jobs:
 
       - name: Download packages
         if: steps.check.outputs.should_release == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: Packages
           path: dist
 
       - name: Publish to PyPI
         if: steps.check.outputs.should_release == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@03f86fee9ac21f854951f5c6e2a02c2a1324aec7 # v1.12.4
         with:
           password: ${{ secrets.PYPI_TOKEN }}
           skip-existing: true
 
       - name: Create GitHub Release
         if: steps.check.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2
         with:
           tag_name: v${{ steps.check.outputs.version }}
           name: v${{ steps.check.outputs.version }}

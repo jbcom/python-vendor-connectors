@@ -7,7 +7,6 @@ import os
 from copy import deepcopy
 from typing import Any, Optional, Union
 
-from vendor_connectors.base import VendorConnectorBase
 from extended_data_types import (
     decode_json,
     decode_yaml,
@@ -21,6 +20,8 @@ from lifecyclelogging import Logging
 from python_graphql_client import GraphqlClient
 from ruamel.yaml import YAML
 
+from vendor_connectors.base import VendorConnectorBase
+
 FilePath = Union[str, bytes, os.PathLike[Any]]
 
 
@@ -31,9 +32,6 @@ def get_github_api_error(exc: GithubException) -> Optional[str]:
 
 
 DEFAULT_PER_PAGE = 100
-
-
-from vendor_connectors.base import VendorConnectorBase
 
 
 class GithubConnector(VendorConnectorBase):
@@ -831,18 +829,18 @@ class GithubConnector(VendorConnectorBase):
         setup_steps = [
             self.build_workflow_step(
                 name="Checkout code",
-                uses="actions/checkout@v4",
+                uses="actions/checkout@v6",
             ),
             self.build_workflow_step(
                 name="Set up Python",
-                uses="actions/setup-python@v5",
+                uses="actions/setup-python@v6",
                 with_params={
                     "python-version": "${{ matrix.python-version }}",
                 },
             ),
             self.build_workflow_step(
                 name="Install uv",
-                uses="astral-sh/setup-uv@v4",
+                uses="astral-sh/setup-uv@v7",
             ),
             self.build_workflow_step(
                 name="Install dependencies",
@@ -969,6 +967,7 @@ def build_github_actions_workflow(
     buffer = io.StringIO()
     yaml.dump(workflow, buffer)
     return buffer.getvalue().strip()
+
 
 from vendor_connectors.github.tools import (
     get_crewai_tools,
