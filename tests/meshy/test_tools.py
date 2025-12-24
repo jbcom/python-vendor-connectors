@@ -407,6 +407,33 @@ class TestCrewAITools:
                 meshy_tools.get_crewai_tools()
 
 
+class TestVercelTools:
+    """Tests for Vercel AI SDK tools (optional dependency)."""
+
+    @pytest.mark.skipif(
+        not pytest.importorskip("pydantic", reason="pydantic not installed"),
+        reason="pydantic not installed",
+    )
+    def test_get_vercel_tools_returns_openai_compatible_tools(self):
+        """Test that get_vercel_tools returns Vercel AI SDK-compatible tools."""
+        from vendor_connectors.meshy.tools import get_vercel_tools
+
+        tools = get_vercel_tools()
+        assert isinstance(tools, list)
+        assert len(tools) == len(EXPECTED_MESHY_TOOLS)
+
+        # Verify the structure of the tool definitions
+        for tool in tools:
+            assert "name" in tool
+            assert "description" in tool
+            assert "parameters" in tool
+            assert isinstance(tool["parameters"], dict)
+
+        # Verify names
+        tool_names = {t["name"] for t in tools}
+        assert tool_names == EXPECTED_MESHY_TOOLS
+
+
 class TestAutoDetection:
     """Tests for framework auto-detection."""
 
@@ -425,3 +452,36 @@ class TestAutoDetection:
 
         with pytest.raises(ValueError, match="Unknown framework"):
             get_tools("invalid_framework")
+
+    @patch("vendor_connectors._compat.is_available")
+    def test_get_tools_auto_detection_priority(self, mock_is_available):
+        """Test auto-detection priority: Vercel > CrewAI > LangChain."""
+        from vendor_connectors.meshy.tools import get_tools
+
+        # These are optional dependencies, so import them inside the test
+        from crewai.tools import BaseTool as CrewAIBaseTool
+        from langchain_core.tools import BaseTool as LangChainBaseTool
+
+        # Case 1: All available, Vercel (pydantic) should be chosen
+        mock_is_available.side_effect = lambda pkg: pkg in ["pydantic", "crewai", "langchain_core"]
+        tools = get_tools("auto")
+        assert isinstance(tools, list)
+        assert all(isinstance(t, dict) for t in tools)
+        tool_names = {t["name"] for t in tools}
+        assert tool_names == EXPECTED_MESHY_TOOLS
+
+        # Case 2: No pydantic, CrewAI should be chosen
+        mock_is_available.side_effect = lambda pkg: pkg in ["crewai", "langchain_core"]
+        tools = get_tools("auto")
+        assert isinstance(tools, list)
+        assert all(isinstance(t, CrewAIBaseTool) for t in tools)
+        tool_names = {t.name for t in tools}
+        assert tool_names == EXPECTED_MESHY_TOOLS
+
+        # Case 3: Only LangChain available
+        mock_is_available.side_effect = lambda pkg: pkg == "langchain_core"
+        tools = get_tools("auto")
+        assert isinstance(tools, list)
+        assert all(isinstance(t, LangChainBaseTool) for t in tools)
+        tool_names = {t.name for t in tools}
+        assert tool_names == EXPECTED_MESHY_TOOLS

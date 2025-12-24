@@ -501,6 +501,59 @@ def get_strands_tools() -> list[Any]:
     return [defn["func"] for defn in TOOL_DEFINITIONS]
 
 
+def get_vercel_tools() -> list[dict[str, Any]]:
+    """Get all Meshy tools as Vercel AI SDK-compatible tool definitions.
+
+    Returns:
+        List of dicts with 'name', 'description', and 'parameters' schema,
+        compatible with the Vercel AI SDK and other OpenAI-style tool formats.
+
+    Raises:
+        ImportError: If pydantic is not installed.
+    """
+    try:
+        from vendor_connectors.meshy.ai_schemas import (
+            ApplyAnimationSchema,
+            CheckTaskStatusSchema,
+            GetAnimationSchema,
+            Image3DGenerateSchema,
+            ListAnimationsSchema,
+            RetextureModelSchema,
+            RigModelSchema,
+            Text3DGenerateSchema,
+        )
+    except ImportError as e:
+        raise ImportError(
+            "pydantic is required for Vercel AI SDK tools.\nInstall with: pip install vendor-connectors[pydantic]"
+        ) from e
+
+    # Map tool functions to their Pydantic schemas
+    schema_map = {
+        text3d_generate: Text3DGenerateSchema,
+        image3d_generate: Image3DGenerateSchema,
+        rig_model: RigModelSchema,
+        apply_animation: ApplyAnimationSchema,
+        retexture_model: RetextureModelSchema,
+        list_animations: ListAnimationsSchema,
+        check_task_status: CheckTaskStatusSchema,
+        get_animation: GetAnimationSchema,
+    }
+
+    vercel_tools = []
+    for defn in TOOL_DEFINITIONS:
+        func = defn["func"]
+        if func in schema_map:
+            schema = schema_map[func]
+            tool_definition = {
+                "name": defn["name"],
+                "description": defn["description"],
+                "parameters": schema.model_json_schema(),
+            }
+            vercel_tools.append(tool_definition)
+
+    return vercel_tools
+
+
 def get_tools(framework: str = "auto") -> list[Any]:
     """Get Meshy tools for the specified or auto-detected framework.
 
@@ -533,8 +586,9 @@ def get_tools(framework: str = "auto") -> list[Any]:
     from vendor_connectors._compat import is_available
 
     if framework == "auto":
-        # Priority: CrewAI > LangChain > Strands/functions
-        # (CrewAI first since it's more opinionated about tool format)
+        # Priority: Vercel > CrewAI > LangChain > Strands/functions
+        if is_available("pydantic"):
+            return get_vercel_tools()
         if is_available("crewai"):
             return get_crewai_tools()
         if is_available("langchain_core"):
@@ -542,6 +596,8 @@ def get_tools(framework: str = "auto") -> list[Any]:
         # Fall back to plain functions (always works)
         return get_strands_tools()
 
+    if framework == "vercel":
+        return get_vercel_tools()
     if framework == "langchain":
         return get_langchain_tools()
     if framework == "crewai":
@@ -549,7 +605,7 @@ def get_tools(framework: str = "auto") -> list[Any]:
     if framework in ("strands", "functions"):
         return get_strands_tools()
 
-    raise ValueError(f"Unknown framework: {framework}. Options: auto, langchain, crewai, strands, functions")
+    raise ValueError(f"Unknown framework: {framework}. Options: auto, vercel, langchain, crewai, strands, functions")
 
 
 # =============================================================================
@@ -562,6 +618,7 @@ __all__ = [
     "get_langchain_tools",
     "get_crewai_tools",
     "get_strands_tools",
+    "get_vercel_tools",
     # Raw functions (for direct use or custom wrappers)
     "text3d_generate",
     "image3d_generate",
