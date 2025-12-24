@@ -141,7 +141,7 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
         # Tool registry for LangChain/MCP
         self._tools: list[StructuredTool] = []
         self._tool_functions: dict[str, Callable] = {}
-        self._pydantic_tools: dict[str, tuple[Callable, "type[BaseModel]"]] = {}
+        self._pydantic_tools: dict[str, tuple[Callable, type[BaseModel]]] = {}
 
     @property
     def api_key(self) -> str:
@@ -372,7 +372,7 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
     def register_pydantic_tool(
         self,
         func: Callable,
-        schema: "type[BaseModel]",
+        schema: type[BaseModel],
         name: str | None = None,
     ) -> None:
         """Register a function with a Pydantic schema for Vercel AI SDK.
@@ -384,6 +384,19 @@ class VendorConnectorBase(DirectedInputsClass, ABC):
         """
         tool_name = name or func.__name__
         self._pydantic_tools[tool_name] = (func, schema)
+
+        # Also register as a standard tool with a wrapper that handles Pydantic conversion
+        def pydantic_wrapper(**kwargs):
+            args = schema(**kwargs)
+            return func(args)
+
+        # Copy docstring and name for inspect.signature to work correctly
+        pydantic_wrapper.__doc__ = func.__doc__
+        pydantic_wrapper.__name__ = tool_name
+        # Store original function for reference
+        pydantic_wrapper._original_func = func
+
+        self._tool_functions[tool_name] = pydantic_wrapper
 
     def get_vercel_ai_tools(self) -> list[dict[str, Any]]:
         """Get tool definitions in Vercel AI SDK format.

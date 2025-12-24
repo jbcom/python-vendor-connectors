@@ -158,3 +158,9 @@ pip install langchain-google-genai  # For Gemini
 
 ---
 *Last updated: 2025-12-07*
+## Session: 2025-12-24
+- Fixed CI failures for PR #19: feat: Add AI tools for the connector
+- Updated pyproject.toml to require Python 3.10+ (needed for crewai)
+- Refactored ZoomConnector to use VendorConnectorBase and httpx
+- Improved VendorConnectorBase.register_pydantic_tool with automatic argument wrapping
+- Fixed lint errors (UP037) and updated Zoom tests

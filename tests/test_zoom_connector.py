@@ -25,7 +25,7 @@ class TestZoomConnector:
         assert connector.client_secret == "test-client-secret"
         assert connector.account_id == "test-account-id"
 
-    @patch("vendor_connectors.zoom.requests.post")
+    @patch("httpx.post")
     def test_get_access_token_success(self, mock_post, base_connector_kwargs):
         """Test successful access token retrieval."""
         mock_response = MagicMock()
@@ -44,12 +44,12 @@ class TestZoomConnector:
         assert token == "test-access-token"
         mock_post.assert_called_once()
 
-    @patch("vendor_connectors.zoom.requests.post")
+    @patch("httpx.post")
     def test_get_access_token_failure(self, mock_post, base_connector_kwargs):
         """Test failed access token retrieval."""
-        import requests
+        import httpx
 
-        mock_post.side_effect = requests.exceptions.RequestException("Connection error")
+        mock_post.side_effect = httpx.HTTPError("Connection error")
 
         connector = ZoomConnector(
             client_id="test-client-id",
@@ -61,15 +61,9 @@ class TestZoomConnector:
         with pytest.raises(RuntimeError, match="Failed to get Zoom access token"):
             connector.get_access_token()
 
-    @patch("vendor_connectors.zoom.requests.get")
-    @patch("vendor_connectors.zoom.requests.post")
-    def test_get_zoom_users(self, mock_post, mock_get, base_connector_kwargs):
+    @patch("vendor_connectors.zoom.ZoomConnector.request")
+    def test_get_zoom_users(self, mock_request, base_connector_kwargs):
         """Test getting Zoom users."""
-        mock_token_response = MagicMock()
-        mock_token_response.json.return_value = {"access_token": "test-token"}
-        mock_token_response.raise_for_status = MagicMock()
-        mock_post.return_value = mock_token_response
-
         mock_users_response = MagicMock()
         mock_users_response.json.return_value = {
             "users": [
@@ -78,8 +72,7 @@ class TestZoomConnector:
             ],
             "next_page_token": None,
         }
-        mock_users_response.raise_for_status = MagicMock()
-        mock_get.return_value = mock_users_response
+        mock_request.return_value = mock_users_response
 
         connector = ZoomConnector(
             client_id="test-client-id",
@@ -93,17 +86,11 @@ class TestZoomConnector:
         assert "user2@example.com" in users
         assert len(users) == 2
 
-    @patch("vendor_connectors.zoom.requests.post")
-    def test_create_zoom_user(self, mock_post, base_connector_kwargs):
+    @patch("vendor_connectors.zoom.ZoomConnector.request")
+    def test_create_zoom_user(self, mock_request, base_connector_kwargs):
         """Test creating a Zoom user."""
-        mock_token_response = MagicMock()
-        mock_token_response.json.return_value = {"access_token": "test-token"}
-        mock_token_response.raise_for_status = MagicMock()
-
         mock_create_response = MagicMock()
-        mock_create_response.raise_for_status = MagicMock()
-
-        mock_post.side_effect = [mock_token_response, mock_create_response]
+        mock_request.return_value = mock_create_response
 
         connector = ZoomConnector(
             client_id="test-client-id",
@@ -118,7 +105,7 @@ class TestZoomConnector:
             CreateZoomUserSchema(email="newuser@example.com", first_name="New", last_name="User")
         )
         assert result is True
-        assert mock_post.call_count == 2
+        mock_request.assert_called_once()
 
     def test_get_vercel_ai_tools(self, base_connector_kwargs):
         """Test getting Vercel AI tool definitions."""
