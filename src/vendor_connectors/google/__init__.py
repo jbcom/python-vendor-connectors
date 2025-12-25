@@ -595,7 +595,7 @@ from vendor_connectors.google.jules import (
 __all__ = [
     # Existing exports...
     "GoogleConnector",
-    "GoogleCloudConnector", 
+    "GoogleCloudConnector",
     "GoogleWorkspaceConnector",
     "GoogleBillingConnector",
     # Jules exports

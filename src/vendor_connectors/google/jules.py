@@ -7,17 +7,17 @@ Usage:
     from vendor_connectors.google.jules import JulesConnector
 
     connector = JulesConnector(api_key="...")
-    
+
     # List available sources (GitHub repos)
     sources = connector.list_sources()
-    
+
     # Create a session
     session = connector.create_session(
         prompt="Fix the login bug",
         source="sources/github/org/repo",
         automation_mode="AUTO_CREATE_PR"
     )
-    
+
     # Poll for completion
     status = connector.get_session(session.name)
 
@@ -48,7 +48,7 @@ __all__ = [
 
 class SessionState(str, Enum):
     """Jules session states."""
-    
+
     UNSPECIFIED = "SESSION_STATE_UNSPECIFIED"
     RUNNING = "RUNNING"
     PAUSED = "PAUSED"
@@ -64,7 +64,7 @@ class SessionState(str, Enum):
 
 class AutomationMode(str, Enum):
     """Automation modes for Jules sessions."""
-    
+
     UNSPECIFIED = "AUTOMATION_MODE_UNSPECIFIED"
     AUTO_CREATE_PR = "AUTO_CREATE_PR"
     MANUAL = "MANUAL"
@@ -72,7 +72,7 @@ class AutomationMode(str, Enum):
 
 class Source(BaseModel):
     """A connected source (e.g., GitHub repository)."""
-    
+
     name: str = Field(..., description="Resource name (e.g., sources/github/org/repo)")
     id: str = Field(..., description="Source ID")
     github_repo: Optional[dict] = Field(None, alias="githubRepo")
@@ -80,14 +80,14 @@ class Source(BaseModel):
 
 class SourceContext(BaseModel):
     """Context for a session's source."""
-    
+
     source: str = Field(..., description="Source resource name")
     github_repo_context: Optional[dict] = Field(None, alias="githubRepoContext")
 
 
 class PullRequestOutput(BaseModel):
     """Pull request created by Jules."""
-    
+
     url: str = Field(..., description="GitHub PR URL")
     title: str = Field("", description="PR title")
     description: str = Field("", description="PR description")
@@ -95,9 +95,9 @@ class PullRequestOutput(BaseModel):
 
 class Session(BaseModel):
     """A Jules session."""
-    
+
     model_config = {"extra": "allow"}  # Allow unknown fields
-    
+
     name: str = Field(..., description="Resource name (e.g., sessions/123)")
     id: str = Field("", description="Session ID")
     title: str = Field("", description="Session title")
@@ -105,7 +105,7 @@ class Session(BaseModel):
     state: Optional[str] = Field(None, description="Current state")
     source_context: Optional[SourceContext] = Field(None, alias="sourceContext")
     outputs: list[dict] = Field(default_factory=list, description="Session outputs")
-    
+
     @property
     def pull_request(self) -> Optional[PullRequestOutput]:
         """Get the pull request output if available."""
@@ -117,7 +117,7 @@ class Session(BaseModel):
 
 class JulesError(Exception):
     """Error from Jules API."""
-    
+
     def __init__(self, message: str, code: int = 0, details: Any = None):
         super().__init__(message)
         self.code = code
@@ -126,12 +126,12 @@ class JulesError(Exception):
 
 class JulesConnector(VendorConnectorBase):
     """Connector for Google Jules AI Agent API.
-    
+
     Provides methods to interact with Jules for automated coding tasks.
     """
-    
+
     BASE_URL = "https://jules.googleapis.com/v1alpha"
-    
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -139,7 +139,7 @@ class JulesConnector(VendorConnectorBase):
         timeout: float = 60.0,
     ):
         """Initialize the Jules connector.
-        
+
         Args:
             api_key: Jules API key. Defaults to JULES_API_KEY env var.
             base_url: API base URL. Defaults to production.
@@ -149,10 +149,10 @@ class JulesConnector(VendorConnectorBase):
         self._api_key = api_key or os.environ.get("JULES_API_KEY", "")
         self.base_url = base_url or self.BASE_URL
         self.timeout = timeout
-        
+
         if not self._api_key:
             raise ValueError("Jules API key required. Set JULES_API_KEY or pass api_key.")
-        
+
         self._client = httpx.Client(
             base_url=self.base_url,
             timeout=self.timeout,
@@ -161,7 +161,7 @@ class JulesConnector(VendorConnectorBase):
                 "Content-Type": "application/json",
             },
         )
-    
+
     def _handle_response(self, response: httpx.Response) -> dict:
         """Handle API response, raising on errors."""
         if not response.is_success:
@@ -175,34 +175,34 @@ class JulesConnector(VendorConnectorBase):
             except (ValueError, KeyError):
                 raise JulesError(response.text, response.status_code)
         return response.json()
-    
+
     # =========================================================================
     # Sources
     # =========================================================================
-    
+
     def list_sources(self, page_size: int = 100, page_token: str = "") -> list[Source]:
         """List available sources (connected GitHub repos).
-        
+
         Args:
             page_size: Maximum number of results.
             page_token: Pagination token.
-            
+
         Returns:
             List of Source objects.
         """
         params = {"pageSize": page_size}
         if page_token:
             params["pageToken"] = page_token
-            
+
         response = self._client.get("/sources", params=params)
         data = self._handle_response(response)
-        
+
         return [Source(**s) for s in data.get("sources", [])]
-    
+
     # =========================================================================
     # Sessions
     # =========================================================================
-    
+
     def create_session(
         self,
         prompt: str,
@@ -213,7 +213,7 @@ class JulesConnector(VendorConnectorBase):
         require_plan_approval: bool = False,
     ) -> Session:
         """Create a new Jules session.
-        
+
         Args:
             prompt: Task description for Jules.
             source: Source resource name (e.g., sources/github/org/repo).
@@ -221,7 +221,7 @@ class JulesConnector(VendorConnectorBase):
             starting_branch: Git branch to start from.
             automation_mode: AUTO_CREATE_PR or MANUAL.
             require_plan_approval: Whether to require explicit plan approval.
-            
+
         Returns:
             Created Session object.
         """
@@ -235,112 +235,112 @@ class JulesConnector(VendorConnectorBase):
             },
             "automationMode": automation_mode,
         }
-        
+
         if title:
             body["title"] = title
         if require_plan_approval:
             body["requirePlanApproval"] = True
-            
+
         response = self._client.post("/sessions", json=body)
         data = self._handle_response(response)
-        
+
         return Session(**data)
-    
+
     def get_session(self, session_name: str) -> Session:
         """Get a session by name.
-        
+
         Args:
             session_name: Full resource name (e.g., sessions/123).
-            
+
         Returns:
             Session object with current state.
         """
         # Handle both full name and just ID
         if not session_name.startswith("sessions/"):
             session_name = f"sessions/{session_name}"
-            
+
         response = self._client.get(f"/{session_name}")
         data = self._handle_response(response)
-        
+
         return Session(**data)
-    
+
     def list_sessions(self, page_size: int = 20, page_token: str = "") -> list[Session]:
         """List sessions.
-        
+
         Args:
             page_size: Maximum number of results.
             page_token: Pagination token.
-            
+
         Returns:
             List of Session objects.
         """
         params = {"pageSize": page_size}
         if page_token:
             params["pageToken"] = page_token
-            
+
         response = self._client.get("/sessions", params=params)
         data = self._handle_response(response)
-        
+
         return [Session(**s) for s in data.get("sessions", [])]
-    
+
     def approve_plan(self, session_name: str) -> Session:
         """Approve the plan for a session that requires approval.
-        
+
         Args:
             session_name: Full resource name.
-            
+
         Returns:
             Updated Session object.
         """
         if not session_name.startswith("sessions/"):
             session_name = f"sessions/{session_name}"
-            
+
         response = self._client.post(f"/{session_name}:approvePlan")
         self._handle_response(response)
-        
+
         # API returns empty on success, fetch updated session
         return self.get_session(session_name)
-    
+
     def add_user_response(self, session_name: str, message: str = "") -> Session:
         """Add a follow-up message to a session or resume it.
-        
+
         Note: The Jules API uses :sendMessage endpoint. An empty body
         resumes a paused session. A message can be included in certain states.
-        
+
         Args:
             session_name: Full resource name.
             message: Optional user message.
-            
+
         Returns:
             Updated Session object.
         """
         if not session_name.startswith("sessions/"):
             session_name = f"sessions/{session_name}"
-        
+
         # The API uses sendMessage, not addUserResponse
         response = self._client.post(f"/{session_name}:sendMessage", json={})
         self._handle_response(response)
-        
+
         # API returns empty on success, fetch updated session
         return self.get_session(session_name)
-    
+
     def resume_session(self, session_name: str) -> Session:
         """Resume a paused or awaiting session.
-        
+
         Args:
             session_name: Full resource name.
-            
+
         Returns:
             Updated Session object.
         """
         return self.add_user_response(session_name)
-    
+
     def close(self):
         """Close the HTTP client."""
         self._client.close()
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *args):
         self.close()
