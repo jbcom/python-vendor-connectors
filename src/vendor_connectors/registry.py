@@ -89,7 +89,7 @@ def _register_builtins(connectors: dict[str, Type[VendorConnectorBase]]) -> None
         "google_billing": ("vendor_connectors.google", "GoogleBillingConnector"),
         # Other connectors
         "cursor": ("vendor_connectors.cursor", "CursorConnector"),
-        "github": ("vendor_connectors.github", "GitHubConnector"),
+        "github": ("vendor_connectors.github", "GithubConnector"),
         "meshy": ("vendor_connectors.meshy", "MeshyConnector"),
         "anthropic": ("vendor_connectors.anthropic", "AnthropicConnector"),
         "aws": ("vendor_connectors.aws", "AWSConnector"),

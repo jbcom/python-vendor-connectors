@@ -31,9 +31,10 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
-from directed_inputs_class import DirectedInputsClass
 from lifecyclelogging import Logging
 from pydantic import BaseModel, ConfigDict, Field
+
+from vendor_connectors.base import VendorConnectorBase
 
 if TYPE_CHECKING:
     pass
@@ -190,7 +191,7 @@ class AgentExecutionResult:
 # =============================================================================
 
 
-class AnthropicConnector(DirectedInputsClass):
+class AnthropicConnector(VendorConnectorBase):
     """Anthropic Claude API connector.
 
     Provides HTTP client access to Anthropic's Claude AI API for message
@@ -213,6 +214,9 @@ class AnthropicConnector(DirectedInputsClass):
         >>> print(response.text)
     """
 
+    API_KEY_ENV = "ANTHROPIC_API_KEY"
+    BASE_URL = DEFAULT_API_URL
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -221,44 +225,25 @@ class AnthropicConnector(DirectedInputsClass):
         logger: Optional[Logging] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.logging = logger or Logging(logger_name="AnthropicConnector")
-        self.logger = self.logging.logger
+        super().__init__(api_key=api_key, logger=logger, timeout=timeout, **kwargs)
 
-        # Get API key
-        self.api_key = (
-            api_key or self.get_input("ANTHROPIC_API_KEY", required=False) or os.environ.get("ANTHROPIC_API_KEY")
-        )
-        if not self.api_key:
+        # Validate API key
+        if not self._api_key:
             raise AnthropicError("ANTHROPIC_API_KEY is required. Set it in environment or pass to constructor.")
 
         self.api_version = api_version
-        self.timeout = timeout
-
-        # Lazy import httpx to avoid issues if not installed
-        import httpx
-
-        self._client = httpx.Client(
-            base_url=DEFAULT_API_URL,
-            timeout=self.timeout,
-            headers={
-                "x-api-key": self.api_key,
-                "anthropic-version": self.api_version,
-                "Content-Type": "application/json",
-            },
-        )
 
         self.logger.info(f"Initialized AnthropicConnector with API version: {self.api_version}")
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    def close(self) -> None:
-        """Close the HTTP client."""
-        self._client.close()
+    def _build_headers(self) -> dict[str, str]:
+        """Build Anthropic-specific headers."""
+        headers = super()._build_headers()
+        headers["anthropic-version"] = self.api_version
+        if self._api_key:
+            headers["x-api-key"] = self._api_key
+            # Anthropic uses x-api-key, so remove standard Authorization header if present
+            headers.pop("Authorization", None)
+        return headers
 
     @staticmethod
     def is_available() -> bool:
@@ -367,7 +352,7 @@ class AnthropicConnector(DirectedInputsClass):
         if metadata:
             body["metadata"] = metadata
 
-        response = self._client.post("/v1/messages", json=body)
+        response = self.post("/v1/messages", json=body)
 
         if not response.is_success:
             self._handle_error(response)
@@ -407,7 +392,7 @@ class AnthropicConnector(DirectedInputsClass):
         if tools:
             body["tools"] = tools
 
-        response = self._client.post("/v1/messages/count_tokens", json=body)
+        response = self.post("/v1/messages/count_tokens", json=body)
 
         if not response.is_success:
             self._handle_error(response)
@@ -430,7 +415,7 @@ class AnthropicConnector(DirectedInputsClass):
         """
         self.logger.info("Listing models from API")
 
-        response = self._client.get("/v1/models")
+        response = self.get("/v1/models")
 
         if not response.is_success:
             self._handle_error(response)
@@ -453,7 +438,7 @@ class AnthropicConnector(DirectedInputsClass):
         """
         self.logger.info(f"Getting model info: {model_id}")
 
-        response = self._client.get(f"/v1/models/{model_id}")
+        response = self.get(f"/v1/models/{model_id}")
 
         if not response.is_success:
             self._handle_error(response)

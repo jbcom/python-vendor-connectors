@@ -133,6 +133,7 @@ class TestAnthropicConnector:
         mock_client = MagicMock()
 
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.is_success = True
         mock_response.json.return_value = {
             "id": "msg_123",
@@ -143,7 +144,7 @@ class TestAnthropicConnector:
             "stop_reason": "end_turn",
             "usage": {"input_tokens": 10, "output_tokens": 5},
         }
-        mock_client.post.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         with patch.object(httpx, "Client", return_value=mock_client):
             connector = AnthropicConnector(api_key="test-key")
@@ -160,8 +161,9 @@ class TestAnthropicConnector:
             assert message.usage.output_tokens == 5
 
             # Verify request
-            call_args = mock_client.post.call_args
-            assert "/v1/messages" in call_args.args[0]
+            call_args = mock_client.request.call_args
+            assert call_args.args[0] == "POST"
+            assert "/v1/messages" in call_args.args[1]
             assert call_args.kwargs["json"]["model"] == "claude-sonnet-4-20250514"
             assert call_args.kwargs["json"]["max_tokens"] == 1024
 
@@ -172,6 +174,7 @@ class TestAnthropicConnector:
         mock_client = MagicMock()
 
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.is_success = True
         mock_response.json.return_value = {
             "id": "msg_123",
@@ -181,7 +184,7 @@ class TestAnthropicConnector:
             "model": "claude-sonnet-4-20250514",
             "usage": {"input_tokens": 10, "output_tokens": 5},
         }
-        mock_client.post.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         with patch.object(httpx, "Client", return_value=mock_client):
             connector = AnthropicConnector(api_key="test-key")
@@ -192,7 +195,7 @@ class TestAnthropicConnector:
                 system="You are a helpful assistant.",
             )
 
-            call_args = mock_client.post.call_args
+            call_args = mock_client.request.call_args
             assert call_args.kwargs["json"]["system"] == "You are a helpful assistant."
 
     def test_list_models(self):
@@ -202,6 +205,7 @@ class TestAnthropicConnector:
         mock_client = MagicMock()
 
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.is_success = True
         mock_response.json.return_value = {
             "data": [
@@ -209,7 +213,7 @@ class TestAnthropicConnector:
                 {"id": "claude-opus-4-20250514", "display_name": "Claude Opus 4"},
             ]
         }
-        mock_client.get.return_value = mock_response
+        mock_client.request.return_value = mock_response
 
         with patch.object(httpx, "Client", return_value=mock_client):
             connector = AnthropicConnector(api_key="test-key")

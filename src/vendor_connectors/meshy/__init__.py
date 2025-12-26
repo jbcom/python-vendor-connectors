@@ -39,6 +39,7 @@ from __future__ import annotations
 
 from vendor_connectors.meshy import animate, base, image3d, retexture, rigging, text3d
 from vendor_connectors.meshy.base import MeshyAPIError, RateLimitError
+from vendor_connectors.meshy.connector import MeshyConnector
 from vendor_connectors.meshy.tools import (
     get_crewai_tools,
     get_langchain_tools,
@@ -47,6 +48,8 @@ from vendor_connectors.meshy.tools import (
 )
 
 __all__ = [
+    # Connector
+    "MeshyConnector",
     # Tools
     "get_tools",
     "get_langchain_tools",

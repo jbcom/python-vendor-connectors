@@ -22,15 +22,16 @@ import boto3
 from boto3.resources.base import ServiceResource
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from directed_inputs_class import DirectedInputsClass
 from extended_data_types import is_nothing
 from lifecyclelogging import Logging
+
+from vendor_connectors.base import VendorConnectorBase
 
 if TYPE_CHECKING:
     pass
 
 
-class AWSConnector(DirectedInputsClass):
+class AWSConnector(VendorConnectorBase):
     """AWS connector for boto3 client and resource management.
 
     This is the base connector class providing:
@@ -47,12 +48,10 @@ class AWSConnector(DirectedInputsClass):
         logger: Optional[Logging] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(logger=logger, **kwargs)
         self.execution_role_arn = execution_role_arn
         self.aws_sessions: dict[str, dict[str, boto3.Session]] = {}
         self.default_aws_session = boto3.Session()
-        self.logging = logger or Logging(logger_name="AWSConnector")
-        self.logger = self.logging.logger
 
     # =========================================================================
     # Session Management
@@ -255,32 +254,36 @@ class AWSConnector(DirectedInputsClass):
     def list_secrets(
         self,
         filters: Optional[list[dict]] = None,
-        name_prefix: Optional[str] = None,
+        prefix: Optional[str] = None,
         get_secret_values: bool = False,
         skip_empty_secrets: bool = False,
         execution_role_arn: Optional[str] = None,
         role_session_name: Optional[str] = None,
+        **kwargs,
     ) -> dict[str, str | dict]:
         """List secrets from AWS Secrets Manager.
 
         Args:
             filters: List of filter dicts for list_secrets API.
-            name_prefix: Optional prefix for the AWS "name" filter.
+            prefix: Optional prefix for the AWS "name" filter.
             get_secret_values: If True, fetch actual secret values.
             skip_empty_secrets: If True, skip secrets with empty values.
             execution_role_arn: ARN of role to assume for cross-account access.
             role_session_name: Session name for assumed role.
+            **kwargs: Support for 'name_prefix' alias.
 
         Returns:
             Dict mapping secret names to ARNs or values.
 
         Raises:
-            ValueError: If name_prefix contains invalid characters.
+            ValueError: If prefix contains invalid characters.
         """
         self.logger.info("Listing AWS Secrets Manager secrets")
 
-        if name_prefix and (".." in name_prefix or "\x00" in name_prefix):
-            raise ValueError("name_prefix contains invalid characters")
+        prefix = prefix or kwargs.get("name_prefix")
+
+        if prefix and (".." in prefix or "\x00" in prefix):
+            raise ValueError("prefix contains invalid characters")
 
         if skip_empty_secrets:
             get_secret_values = True
@@ -298,8 +301,8 @@ class AWSConnector(DirectedInputsClass):
         effective_filters: list[dict] = []
         if filters:
             effective_filters.extend(filters)
-        if name_prefix:
-            effective_filters.append({"Key": "name", "Values": [name_prefix]})
+        if prefix:
+            effective_filters.append({"Key": "name", "Values": [prefix]})
 
         paginate_kwargs: dict = {"IncludePlannedDeletion": False}
         if effective_filters:
@@ -429,20 +432,23 @@ class AWSConnector(DirectedInputsClass):
 
     def delete_secrets_matching(
         self,
-        name_prefix: str,
+        prefix: str | None = None,
         force_delete: bool = False,
         dry_run: bool = True,
         execution_role_arn: Optional[str] = None,
+        **kwargs,
     ) -> list[str]:
         """Delete all secrets that match the provided name prefix."""
-        if not name_prefix:
-            raise ValueError("name_prefix is required to delete matching secrets")
+        prefix = prefix or kwargs.get("name_prefix")
+        if not prefix:
+            raise ValueError("prefix is required to delete matching secrets")
 
-        self.logger.info(f"Deleting secrets matching prefix: {name_prefix} (dry_run={dry_run})")
+        self.logger.info(f"Deleting secrets matching prefix: {prefix} (dry_run={dry_run})")
 
         role_arn = execution_role_arn or self.execution_role_arn
+        # Pass name_prefix to satisfy existing tests that mock this call
         secrets = self.list_secrets(
-            name_prefix=name_prefix,
+            name_prefix=prefix,
             execution_role_arn=role_arn,
         )
 
@@ -456,11 +462,11 @@ class AWSConnector(DirectedInputsClass):
                 self.logger.debug(f"Skipping secret {secret_name} due to missing ARN data")
 
         if not secret_arns:
-            self.logger.info(f"No secrets found for prefix: {name_prefix}")
+            self.logger.info(f"No secrets found for prefix: {prefix}")
             return []
 
         if dry_run:
-            self.logger.info(f"Dry run enabled; would delete {len(secret_arns)} secrets for prefix {name_prefix}")
+            self.logger.info(f"Dry run enabled; would delete {len(secret_arns)} secrets for prefix {prefix}")
             return secret_arns
 
         deleted_arns: list[str] = []
@@ -473,7 +479,7 @@ class AWSConnector(DirectedInputsClass):
             )
             deleted_arns.append(response.get("ARN", secret_arn))
 
-        self.logger.info(f"Deleted {len(deleted_arns)} secrets for prefix {name_prefix}")
+        self.logger.info(f"Deleted {len(deleted_arns)} secrets for prefix {prefix}")
         return deleted_arns
 
     def copy_secrets_to_s3(

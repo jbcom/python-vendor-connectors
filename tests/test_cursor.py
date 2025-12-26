@@ -190,6 +190,7 @@ class TestCursorConnector:
         mock_client_class.return_value = mock_client
 
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.is_success = True
         mock_response.headers = {"content-type": "application/json"}
         mock_response.text = '{"agents": [{"id": "agent-1", "state": "running"}]}'
@@ -210,6 +211,7 @@ class TestCursorConnector:
         mock_client_class.return_value = mock_client
 
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.is_success = True
         mock_response.headers = {"content-type": "application/json"}
         mock_response.json.return_value = {"id": "new-agent", "state": "pending"}
@@ -226,8 +228,8 @@ class TestCursorConnector:
 
         # Verify request was made correctly
         call_args = mock_client.request.call_args
-        assert call_args.kwargs["method"] == "POST"
-        assert call_args.kwargs["url"] == "/agents"
+        assert call_args.args[0] == "POST"
+        assert "/agents" in call_args.args[1]
         assert "prompt" in call_args.kwargs["json"]
         assert "source" in call_args.kwargs["json"]
 

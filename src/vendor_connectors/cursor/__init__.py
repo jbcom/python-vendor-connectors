@@ -29,9 +29,10 @@ from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import urlparse
 
 import httpx
-from directed_inputs_class import DirectedInputsClass
 from lifecyclelogging import Logging
 from pydantic import BaseModel, ConfigDict, Field
+
+from vendor_connectors.base import VendorConnectorBase
 
 if TYPE_CHECKING:
     pass
@@ -301,7 +302,7 @@ def sanitize_error(error: Any) -> str:
 # =============================================================================
 
 
-class CursorConnector(DirectedInputsClass):
+class CursorConnector(VendorConnectorBase):
     """Cursor Background Agent API connector.
 
     Provides HTTP client access to Cursor's agent management API for spawning,
@@ -321,6 +322,9 @@ class CursorConnector(DirectedInputsClass):
         ...     print(f"{agent.id}: {agent.state}")
     """
 
+    API_KEY_ENV = "CURSOR_API_KEY"
+    BASE_URL = DEFAULT_BASE_URL
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -329,40 +333,13 @@ class CursorConnector(DirectedInputsClass):
         logger: Optional[Logging] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.logging = logger or Logging(logger_name="CursorConnector")
-        self.logger = self.logging.logger
+        super().__init__(api_key=api_key, base_url=base_url, logger=logger, timeout=timeout, **kwargs)
 
-        # Get API key from input, env, or constructor
-        self.api_key = api_key or self.get_input("CURSOR_API_KEY", required=False) or os.environ.get("CURSOR_API_KEY")
-        if not self.api_key:
+        # Validate API key
+        if not self._api_key:
             raise CursorError("CURSOR_API_KEY is required. Set it in environment or pass to constructor.")
 
-        # Security: Only allow base_url via explicit programmatic configuration
-        # Do NOT allow env var override to prevent SSRF attacks
-        self.base_url = base_url or DEFAULT_BASE_URL
-        self.timeout = timeout
-
-        self._client = httpx.Client(
-            base_url=self.base_url,
-            timeout=self.timeout,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-        )
-
-        self.logger.info(f"Initialized CursorConnector with base URL: {self.base_url}")
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    def close(self) -> None:
-        """Close the HTTP client."""
-        self._client.close()
+        self.logger.info(f"Initialized CursorConnector with base URL: {self._base_url}")
 
     @staticmethod
     def is_available() -> bool:
@@ -373,7 +350,7 @@ class CursorConnector(DirectedInputsClass):
         """
         return bool(os.environ.get("CURSOR_API_KEY"))
 
-    def _request(
+    def _request_api(
         self,
         endpoint: str,
         method: str = "GET",
@@ -393,21 +370,11 @@ class CursorConnector(DirectedInputsClass):
             CursorAPIError: If the API returns an error.
         """
         try:
-            response = self._client.request(
+            response = self.request(
                 method=method,
-                url=endpoint,
+                endpoint=endpoint,
                 json=json_body,
             )
-
-            if not response.is_success:
-                error_text = response.text
-                try:
-                    error_data = response.json()
-                    details = error_data.get("message") or error_data.get("error") or "Unknown API error"
-                except Exception:
-                    details = sanitize_error(error_text)
-
-                raise CursorAPIError(f"API Error {response.status_code}: {details}", status_code=response.status_code)
 
             # Handle empty responses (e.g., 204 No Content)
             content_type = response.headers.get("content-type", "")
@@ -421,8 +388,10 @@ class CursorConnector(DirectedInputsClass):
             return response.json()
 
         except httpx.TimeoutException as e:
-            raise CursorAPIError(f"Request timeout after {self.timeout}s") from e
-        except httpx.RequestError as e:
+            raise CursorAPIError(f"Request timeout after {self._timeout}s") from e
+        except Exception as e:
+            if isinstance(e, CursorAPIError):
+                raise
             raise CursorAPIError(sanitize_error(str(e))) from e
 
     # =========================================================================
@@ -439,7 +408,7 @@ class CursorConnector(DirectedInputsClass):
             CursorAPIError: If the API request fails.
         """
         self.logger.info("Listing agents")
-        data = self._request("/agents")
+        data = self._request_api("/agents")
         if not data:
             return []
 
@@ -462,7 +431,7 @@ class CursorConnector(DirectedInputsClass):
         validate_agent_id(agent_id)
         self.logger.info(f"Getting status for agent: {agent_id}")
 
-        data = self._request(f"/agents/{agent_id}")
+        data = self._request_api(f"/agents/{agent_id}")
         if not data:
             raise CursorAPIError(f"Empty response when getting agent status for {agent_id}")
         return Agent.model_validate(data)
@@ -483,7 +452,7 @@ class CursorConnector(DirectedInputsClass):
         validate_agent_id(agent_id)
         self.logger.info(f"Getting conversation for agent: {agent_id}")
 
-        data = self._request(f"/agents/{agent_id}/conversation")
+        data = self._request_api(f"/agents/{agent_id}/conversation")
         if not data:
             return Conversation(agent_id=agent_id, messages=[])
 
@@ -569,7 +538,7 @@ class CursorConnector(DirectedInputsClass):
                 webhook["secret"] = webhook_secret
             body["webhook"] = webhook
 
-        data = self._request("/agents", method="POST", json_body=body)
+        data = self._request_api("/agents", method="POST", json_body=body)
         if not data:
             raise CursorAPIError("Empty response when launching agent")
         return Agent.model_validate(data)
@@ -590,7 +559,7 @@ class CursorConnector(DirectedInputsClass):
 
         self.logger.info(f"Adding follow-up to agent: {agent_id}")
 
-        self._request(
+        self._request_api(
             f"/agents/{agent_id}/followup",
             method="POST",
             json_body={"prompt": {"text": prompt_text}},
@@ -610,7 +579,7 @@ class CursorConnector(DirectedInputsClass):
             CursorAPIError: If the API request fails.
         """
         self.logger.info("Listing repositories")
-        data = self._request("/repositories")
+        data = self._request_api("/repositories")
         if not data:
             return []
 
@@ -631,7 +600,7 @@ class CursorConnector(DirectedInputsClass):
             CursorAPIError: If the API request fails.
         """
         self.logger.info("Listing models")
-        data = self._request("/models")
+        data = self._request_api("/models")
         if not data:
             return []
 

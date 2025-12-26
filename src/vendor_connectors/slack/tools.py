@@ -258,25 +258,25 @@ TOOL_DEFINITIONS = [
         "name": "slack_list_channels",
         "description": "List Slack channels with their properties. Returns channel names, IDs, topics, and member counts.",
         "func": list_channels,
-        "args_schema": ListChannelsSchema,
+        "schema": ListChannelsSchema,
     },
     {
         "name": "slack_list_users",
         "description": "List Slack users with their profiles. Returns user names, emails, and roles.",
         "func": list_users,
-        "args_schema": ListUsersSchema,
+        "schema": ListUsersSchema,
     },
     {
         "name": "slack_send_message",
         "description": "Send a message to a Slack channel. Can optionally reply in a thread.",
         "func": send_message,
-        "args_schema": SendMessageSchema,
+        "schema": SendMessageSchema,
     },
     {
         "name": "slack_get_channel_history",
         "description": "Get recent messages from a Slack channel. Returns message history with timestamps and users.",
         "func": get_channel_history,
-        "args_schema": GetChannelHistorySchema,
+        "schema": GetChannelHistorySchema,
     },
 ]
 
@@ -307,7 +307,7 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
-            args_schema=defn.get("args_schema"),
+            args_schema=defn.get("schema") or defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
@@ -333,8 +333,9 @@ def get_crewai_tools() -> list[Any]:
     for defn in TOOL_DEFINITIONS:
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
-        if "args_schema" in defn:
-            wrapped.args_schema = defn["args_schema"]
+        schema = defn.get("schema") or defn.get("args_schema")
+        if schema:
+            wrapped.args_schema = schema
         tools.append(wrapped)
 
     return tools

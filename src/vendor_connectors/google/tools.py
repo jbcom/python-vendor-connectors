@@ -295,37 +295,37 @@ TOOL_DEFINITIONS = [
         "name": "google_list_projects",
         "description": "List Google Cloud projects with their IDs, names, and states.",
         "func": list_projects,
-        "args_schema": ListProjectsSchema,
+        "schema": ListProjectsSchema,
     },
     {
         "name": "google_list_folders",
         "description": "List Google Cloud folders under a parent organization or folder.",
         "func": list_folders,
-        "args_schema": ListFoldersSchema,
+        "schema": ListFoldersSchema,
     },
     {
         "name": "google_list_enabled_services",
         "description": "List enabled APIs/services in a Google Cloud project.",
         "func": list_enabled_services,
-        "args_schema": ListEnabledServicesSchema,
+        "schema": ListEnabledServicesSchema,
     },
     {
         "name": "google_list_billing_accounts",
         "description": "List Google Cloud billing accounts with their status.",
         "func": list_billing_accounts,
-        "args_schema": ListBillingAccountsSchema,
+        "schema": ListBillingAccountsSchema,
     },
     {
         "name": "google_list_workspace_users",
         "description": "List users from Google Workspace with their details.",
         "func": list_workspace_users,
-        "args_schema": ListWorkspaceUsersSchema,
+        "schema": ListWorkspaceUsersSchema,
     },
     {
         "name": "google_list_workspace_groups",
         "description": "List groups from Google Workspace with member counts.",
         "func": list_workspace_groups,
-        "args_schema": ListWorkspaceGroupsSchema,
+        "schema": ListWorkspaceGroupsSchema,
     },
 ]
 
@@ -356,7 +356,7 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
-            args_schema=defn.get("args_schema"),
+            args_schema=defn.get("schema") or defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
@@ -382,8 +382,9 @@ def get_crewai_tools() -> list[Any]:
     for defn in TOOL_DEFINITIONS:
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
-        if "args_schema" in defn:
-            wrapped.args_schema = defn["args_schema"]
+        schema = defn.get("schema") or defn.get("args_schema")
+        if schema:
+            wrapped.args_schema = schema
         tools.append(wrapped)
 
     return tools

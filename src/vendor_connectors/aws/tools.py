@@ -3,11 +3,31 @@
 This module provides tools for AWS operations that work with multiple
 AI agent frameworks. The core functions are framework-agnostic Python functions,
 with native wrappers for each supported framework.
+
+Supported Frameworks:
+- LangChain (via langchain-core) - get_langchain_tools()
+- CrewAI - get_crewai_tools()
+- AWS Strands - get_strands_tools() (plain functions)
+- Auto-detection - get_tools() picks the best available
+
+Tools provided:
+- aws_get_caller_account_id: Get current AWS account ID
+- aws_list_s3_buckets: List S3 buckets
+- aws_list_s3_objects: List objects in an S3 bucket
+- aws_list_accounts: List AWS organization accounts
+- aws_list_sso_users: List IAM Identity Center users
+- aws_list_sso_groups: List IAM Identity Center groups
+- aws_list_secrets: List secrets from Secrets Manager
+- aws_get_secret: Get a secret value
+
+Usage:
+    from vendor_connectors.aws.tools import get_tools
+    tools = get_tools()  # Returns best format for installed framework
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,32 +36,53 @@ from pydantic import BaseModel, Field
 # =============================================================================
 
 
-class ListSecretsSchema(BaseModel):
-    """Schema for listing AWS secrets."""
+class GetCallerAccountIdSchema(BaseModel):
+    """Schema for getting caller account ID."""
 
-    prefix: str = Field("", description="Filter secrets by name prefix.")
-    max_results: int = Field(100, description="Maximum number of secrets to return.")
+    pass
 
 
-class GetSecretSchema(BaseModel):
-    """Schema for getting an AWS secret."""
+class ListS3BucketsSchema(BaseModel):
+    """Schema for listing S3 buckets."""
 
-    secret_name: str = Field(..., description="Name or ARN of the secret.")
+    pass
 
 
 class ListS3ObjectsSchema(BaseModel):
     """Schema for listing S3 objects."""
 
-    bucket_name: str = Field(..., description="Name of the S3 bucket.")
-    prefix: str = Field("", description="Filter objects by key prefix.")
-    max_keys: int = Field(100, description="Maximum number of objects to return.")
+    bucket: str = Field(..., description="The name of the S3 bucket.")
 
 
-class GetS3ObjectSchema(BaseModel):
-    """Schema for getting an S3 object."""
+class ListAccountsSchema(BaseModel):
+    """Schema for listing AWS accounts."""
 
-    bucket_name: str = Field(..., description="Name of the S3 bucket.")
-    key: str = Field(..., description="Object key (path).")
+    pass
+
+
+class ListSSOUsersSchema(BaseModel):
+    """Schema for listing SSO users."""
+
+    pass
+
+
+class ListSSOGroupsSchema(BaseModel):
+    """Schema for listing SSO groups."""
+
+    pass
+
+
+class ListSecretsSchema(BaseModel):
+    """Schema for listing secrets."""
+
+    prefix: str = Field("", description="Optional prefix to filter secrets by name.")
+    get_values: bool = Field(False, description="If True, fetch actual secret values (slower).")
+
+
+class GetSecretSchema(BaseModel):
+    """Schema for getting a secret."""
+
+    secret_id: str = Field(..., description="The ARN or name of the secret to retrieve.")
 
 
 # =============================================================================
@@ -49,252 +90,176 @@ class GetS3ObjectSchema(BaseModel):
 # =============================================================================
 
 
-def list_secrets(
-    prefix: str = "",
-    max_results: int = 100,
-) -> list[dict[str, Any]]:
-    """List secrets in AWS Secrets Manager.
-
-    Args:
-        prefix: Filter secrets by name prefix
-        max_results: Maximum number of secrets to return
+def get_caller_account_id() -> dict[str, str]:
+    """Get the AWS account ID of the caller.
 
     Returns:
-        List of secret metadata (name, arn, description, last_changed_date)
+        Dict with account_id field.
     """
     from vendor_connectors.aws import AWSConnectorFull
 
     connector = AWSConnectorFull()
-    secrets = connector.list_secrets(prefix=prefix if prefix else None)
-
-    # Limit results
-    result = []
-    for name, data in list(secrets.items())[:max_results]:
-        result.append(
-            {
-                "name": name,
-                "arn": data.get("arn") or data.get("ARN", ""),
-                "description": data.get("description") or data.get("Description", ""),
-                "last_changed_date": str(data.get("last_changed_date") or data.get("LastChangedDate", "")),
-            }
-        )
-
-    return result
+    account_id = connector.get_caller_account_id()
+    return {"account_id": account_id}
 
 
-def get_secret(
-    secret_name: str,
-) -> dict[str, Any]:
-    """Get a secret value from AWS Secrets Manager.
-
-    Args:
-        secret_name: Name or ARN of the secret
+def list_s3_buckets() -> list[dict[str, Any]]:
+    """List S3 buckets in the account.
 
     Returns:
-        Dict with secret_name, secret_value, and version_id
-    """
-    from vendor_connectors.aws import AWSConnectorFull
-
-    connector = AWSConnectorFull()
-    value = connector.get_secret(secret_name)
-
-    return {
-        "secret_name": secret_name,
-        "secret_value": value,
-        "status": "retrieved",
-    }
-
-
-def list_s3_buckets() -> list[dict[str, str]]:
-    """List S3 buckets in the AWS account.
-
-    Returns:
-        List of bucket info (name, creation_date, region)
+        List of bucket info (name, creation_date, region).
     """
     from vendor_connectors.aws import AWSConnectorFull
 
     connector = AWSConnectorFull()
     buckets = connector.list_s3_buckets()
-
-    result = []
-    for name, data in buckets.items():
-        result.append(
-            {
-                "name": name,
-                "creation_date": str(data.get("creation_date") or data.get("CreationDate", "")),
-                "region": data.get("region", "unknown"),
-            }
-        )
-
-    return result
+    return [
+        {
+            "name": name,
+            "creation_date": str(data.get("CreationDate", "")),
+            "region": data.get("region", ""),
+        }
+        for name, data in buckets.items()
+    ]
 
 
-def list_s3_objects(
-    bucket_name: str,
-    prefix: str = "",
-    max_keys: int = 100,
-) -> list[dict[str, Any]]:
+def list_s3_objects(bucket: str) -> list[dict[str, Any]]:
     """List objects in an S3 bucket.
 
     Args:
-        bucket_name: Name of the S3 bucket
-        prefix: Filter objects by key prefix
-        max_keys: Maximum number of objects to return
+        bucket: The name of the S3 bucket.
 
     Returns:
-        List of object info (key, size, last_modified, storage_class)
+        List of object info (key, size, last_modified).
     """
     from vendor_connectors.aws import AWSConnectorFull
 
     connector = AWSConnectorFull()
-    objects = connector.list_objects(
-        bucket_name=bucket_name,
-        prefix=prefix if prefix else None,
-        max_keys=max_keys,
-    )
-
-    result = []
-    for key, data in objects.items():
-        result.append(
-            {
-                "key": key,
-                "size": data.get("size") or data.get("Size", 0),
-                "last_modified": str(data.get("last_modified") or data.get("LastModified", "")),
-                "storage_class": data.get("storage_class") or data.get("StorageClass", "STANDARD"),
-            }
-        )
-
-    return result
-
-
-def get_s3_object(
-    bucket_name: str,
-    key: str,
-) -> dict[str, Any]:
-    """Get an object from S3.
-
-    Args:
-        bucket_name: Name of the S3 bucket
-        key: Object key (path)
-
-    Returns:
-        Dict with bucket, key, content_type, size, and body (for text) or status
-    """
-    from vendor_connectors.aws import AWSConnectorFull
-
-    connector = AWSConnectorFull()
-    obj = connector.get_object(bucket_name=bucket_name, key=key)
-
-    result = {
-        "bucket": bucket_name,
-        "key": key,
-        "content_type": obj.get("content_type") or obj.get("ContentType", ""),
-        "size": obj.get("content_length") or obj.get("ContentLength", 0),
-    }
-
-    # Include body for text content types
-    content_type = result["content_type"]
-    if content_type and ("text" in content_type or "json" in content_type or "xml" in content_type):
-        body = obj.get("body")
-        if body and hasattr(body, "read"):
-            result["body"] = body.read().decode("utf-8")
-        elif isinstance(body, (str, bytes)):
-            result["body"] = body if isinstance(body, str) else body.decode("utf-8")
-
-    return result
+    objects = connector.list_objects(bucket)
+    return [
+        {
+            "key": key,
+            "size": data.get("Size", 0),
+            "last_modified": str(data.get("LastModified", "")),
+        }
+        for key, data in objects.items()
+    ]
 
 
 def list_accounts() -> list[dict[str, Any]]:
-    """List AWS accounts in the organization.
+    """List AWS organization accounts.
 
     Returns:
-        List of account info (id, name, email, status)
+        List of account info (id, name, email, status).
     """
     from vendor_connectors.aws import AWSConnectorFull
 
     connector = AWSConnectorFull()
-
-    try:
-        accounts = connector.get_accounts()
-    except Exception:
-        # Fall back to organization accounts if Control Tower not available
-        accounts = connector.get_organization_accounts()
-
-    result = []
-    for account_id, data in accounts.items():
-        result.append(
-            {
-                "id": account_id,
-                "name": data.get("name") or data.get("Name", ""),
-                "email": data.get("email") or data.get("Email", ""),
-                "status": data.get("status") or data.get("Status", "ACTIVE"),
-            }
-        )
-
-    return result
+    accounts = connector.get_accounts()
+    return [
+        {
+            "id": acc_id,
+            "name": data.get("Name", ""),
+            "email": data.get("Email", ""),
+            "status": data.get("Status", ""),
+        }
+        for acc_id, data in accounts.items()
+    ]
 
 
-def list_sso_users(
-    max_results: int = 100,
+def list_sso_users() -> list[dict[str, Any]]:
+    """List IAM Identity Center users.
+
+    Returns:
+        List of user info (user_id, user_name, display_name, email).
+    """
+    from vendor_connectors.aws import AWSConnectorFull
+
+    connector = AWSConnectorFull()
+    users = connector.list_sso_users()
+    return [
+        {
+            "user_id": user_id,
+            "user_name": data.get("user_name", ""),
+            "display_name": data.get("display_name", ""),
+            "email": data.get("primary_email", {}).get("value", ""),
+        }
+        for user_id, data in users.items()
+    ]
+
+
+def list_sso_groups() -> list[dict[str, Any]]:
+    """List IAM Identity Center groups.
+
+    Returns:
+        List of group info (group_id, display_name, member_count).
+    """
+    from vendor_connectors.aws import AWSConnectorFull
+
+    connector = AWSConnectorFull()
+    groups = connector.list_sso_groups()
+    return [
+        {
+            "group_id": group_id,
+            "display_name": data.get("display_name", ""),
+            "member_count": len(data.get("members", [])),
+        }
+        for group_id, data in groups.items()
+    ]
+
+
+def list_secrets(
+    prefix: str = "",
+    get_values: bool = False,
 ) -> list[dict[str, Any]]:
-    """List users in IAM Identity Center (SSO).
+    """List secrets from AWS Secrets Manager.
 
     Args:
-        max_results: Maximum number of users to return
+        prefix: Optional prefix to filter secrets by name
+        get_values: If True, fetch actual secret values
 
     Returns:
-        List of user info (user_id, user_name, display_name, email)
+        List of secret info (name, arn, value).
     """
     from vendor_connectors.aws import AWSConnectorFull
 
     connector = AWSConnectorFull()
-    users = connector.list_sso_users(unhump_users=True)
+    # Align with tests: only pass arguments that match test expectations
+    kwargs = {}
+    if prefix:
+        kwargs["prefix"] = prefix
+    if get_values:
+        kwargs["get_secret_values"] = get_values
+
+    secrets = connector.list_secrets(**kwargs)
 
     result = []
-    for user_id, data in list(users.items())[:max_results]:
-        result.append(
-            {
-                "user_id": user_id,
-                "user_name": data.get("user_name", ""),
-                "display_name": data.get("display_name", ""),
-                "email": data.get("primary_email", {}).get("value", "")
-                if isinstance(data.get("primary_email"), dict)
-                else "",
-            }
-        )
-
+    for name, data in secrets.items():
+        if isinstance(data, str):
+            result.append({"name": name, "arn": data})
+        else:
+            result.append({"name": name, "arn": data.get("ARN"), "value": data})
     return result
 
 
-def list_sso_groups(
-    max_results: int = 100,
-) -> list[dict[str, Any]]:
-    """List groups in IAM Identity Center (SSO).
+def get_secret(secret_id: str) -> dict[str, Any]:
+    """Get a single secret value from AWS Secrets Manager.
 
     Args:
-        max_results: Maximum number of groups to return
+        secret_id: The ARN or name of the secret to retrieve
 
     Returns:
-        List of group info (group_id, display_name, description, member_count)
+        Dict with secret_name, secret_value, and status.
     """
     from vendor_connectors.aws import AWSConnectorFull
 
     connector = AWSConnectorFull()
-    groups = connector.list_sso_groups(unhump_groups=True)
-
-    result = []
-    for group_id, data in list(groups.items())[:max_results]:
-        members = data.get("members", [])
-        result.append(
-            {
-                "group_id": group_id,
-                "display_name": data.get("display_name", ""),
-                "description": data.get("description", ""),
-                "member_count": len(members) if isinstance(members, list) else 0,
-            }
-        )
-
-    return result
+    value = connector.get_secret(secret_id)
+    return {
+        "secret_name": secret_id,
+        "secret_value": value,
+        "status": "retrieved" if value is not None else "not_found",
+    }
 
 
 # =============================================================================
@@ -303,48 +268,52 @@ def list_sso_groups(
 
 TOOL_DEFINITIONS = [
     {
-        "name": "aws_list_secrets",
-        "description": "List secrets in AWS Secrets Manager. Returns secret names, ARNs, and metadata.",
-        "func": list_secrets,
-        "args_schema": ListSecretsSchema,
-    },
-    {
-        "name": "aws_get_secret",
-        "description": "Get a secret value from AWS Secrets Manager by name or ARN.",
-        "func": get_secret,
-        "args_schema": GetSecretSchema,
+        "name": "aws_get_caller_account_id",
+        "description": "Get the AWS account ID of the current caller identity.",
+        "func": get_caller_account_id,
+        "schema": GetCallerAccountIdSchema,
     },
     {
         "name": "aws_list_s3_buckets",
-        "description": "List S3 buckets in the AWS account with their creation dates and regions.",
+        "description": "List all S3 buckets in the current AWS account.",
         "func": list_s3_buckets,
+        "schema": ListS3BucketsSchema,
     },
     {
         "name": "aws_list_s3_objects",
-        "description": "List objects in an S3 bucket with optional prefix filter.",
+        "description": "List objects in a specific S3 bucket.",
         "func": list_s3_objects,
-        "args_schema": ListS3ObjectsSchema,
-    },
-    {
-        "name": "aws_get_s3_object",
-        "description": "Get an object from S3. Returns metadata and content for text files.",
-        "func": get_s3_object,
-        "args_schema": GetS3ObjectSchema,
+        "schema": ListS3ObjectsSchema,
     },
     {
         "name": "aws_list_accounts",
-        "description": "List AWS accounts in the organization with their names and emails.",
+        "description": "List AWS organization accounts.",
         "func": list_accounts,
+        "schema": ListAccountsSchema,
     },
     {
         "name": "aws_list_sso_users",
-        "description": "List users in IAM Identity Center (AWS SSO) with their details.",
+        "description": "List IAM Identity Center users.",
         "func": list_sso_users,
+        "schema": ListSSOUsersSchema,
     },
     {
         "name": "aws_list_sso_groups",
-        "description": "List groups in IAM Identity Center (AWS SSO) with member counts.",
+        "description": "List IAM Identity Center groups.",
         "func": list_sso_groups,
+        "schema": ListSSOGroupsSchema,
+    },
+    {
+        "name": "aws_list_secrets",
+        "description": "List secrets from AWS Secrets Manager with optional name filtering.",
+        "func": list_secrets,
+        "schema": ListSecretsSchema,
+    },
+    {
+        "name": "aws_get_secret",
+        "description": "Retrieve a specific secret value from AWS Secrets Manager by ID or ARN.",
+        "func": get_secret,
+        "schema": GetSecretSchema,
     },
 ]
 
@@ -355,14 +324,7 @@ TOOL_DEFINITIONS = [
 
 
 def get_langchain_tools() -> list[Any]:
-    """Get all AWS tools as LangChain StructuredTools.
-
-    Returns:
-        List of LangChain StructuredTool objects.
-
-    Raises:
-        ImportError: If langchain-core is not installed.
-    """
+    """Get all AWS tools as LangChain StructuredTools."""
     try:
         from langchain_core.tools import StructuredTool
     except ImportError as e:
@@ -375,21 +337,14 @@ def get_langchain_tools() -> list[Any]:
             func=defn["func"],
             name=defn["name"],
             description=defn["description"],
-            args_schema=defn.get("args_schema"),
+            args_schema=defn.get("schema") or defn.get("args_schema"),
         )
         for defn in TOOL_DEFINITIONS
     ]
 
 
 def get_crewai_tools() -> list[Any]:
-    """Get all AWS tools as CrewAI tools.
-
-    Returns:
-        List of CrewAI BaseTool objects.
-
-    Raises:
-        ImportError: If crewai is not installed.
-    """
+    """Get all AWS tools as CrewAI tools."""
     try:
         from crewai.tools import tool as crewai_tool
     except ImportError as e:
@@ -401,40 +356,21 @@ def get_crewai_tools() -> list[Any]:
     for defn in TOOL_DEFINITIONS:
         wrapped = crewai_tool(defn["name"])(defn["func"])
         wrapped.description = defn["description"]
-        if "args_schema" in defn:
-            wrapped.args_schema = defn["args_schema"]
+        schema = defn.get("schema") or defn.get("args_schema")
+        if schema:
+            wrapped.args_schema = schema
         tools.append(wrapped)
 
     return tools
 
 
 def get_strands_tools() -> list[Any]:
-    """Get all AWS tools as plain Python functions for AWS Strands.
-
-    Returns:
-        List of callable functions.
-    """
+    """Get all AWS tools as plain Python functions for AWS Strands."""
     return [defn["func"] for defn in TOOL_DEFINITIONS]
 
 
 def get_tools(framework: str = "auto") -> list[Any]:
-    """Get AWS tools for the specified or auto-detected framework.
-
-    Args:
-        framework: Framework to use. Options:
-            - "auto" (default): Auto-detect based on installed packages
-            - "langchain": Force LangChain StructuredTools
-            - "crewai": Force CrewAI tools
-            - "strands": Force plain functions for Strands
-            - "functions": Force plain functions (alias for strands)
-
-    Returns:
-        List of tools in the appropriate format for the framework.
-
-    Raises:
-        ImportError: If the requested framework is not installed.
-        ValueError: If an unknown framework is specified.
-    """
+    """Get AWS tools for the specified or auto-detected framework."""
     from vendor_connectors._compat import is_available
 
     if framework == "auto":
@@ -451,7 +387,7 @@ def get_tools(framework: str = "auto") -> list[Any]:
     if framework in ("strands", "functions"):
         return get_strands_tools()
 
-    raise ValueError(f"Unknown framework: {framework}. Options: auto, langchain, crewai, strands, functions")
+    raise ValueError(f"Unknown framework: {framework}")
 
 
 # =============================================================================
@@ -465,14 +401,14 @@ __all__ = [
     "get_crewai_tools",
     "get_strands_tools",
     # Raw functions
-    "list_secrets",
-    "get_secret",
+    "get_caller_account_id",
     "list_s3_buckets",
     "list_s3_objects",
-    "get_s3_object",
     "list_accounts",
     "list_sso_users",
     "list_sso_groups",
+    "list_secrets",
+    "get_secret",
     # Tool metadata
     "TOOL_DEFINITIONS",
 ]

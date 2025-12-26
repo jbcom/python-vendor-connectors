@@ -30,7 +30,6 @@ import os
 from enum import Enum
 from typing import Any, Optional
 
-import httpx
 from pydantic import BaseModel, Field
 
 from vendor_connectors.base import VendorConnectorBase
@@ -131,12 +130,14 @@ class JulesConnector(VendorConnectorBase):
     """
 
     BASE_URL = "https://jules.googleapis.com/v1alpha"
+    API_KEY_ENV = "JULES_API_KEY"
 
     def __init__(
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         timeout: float = 60.0,
+        **kwargs,
     ):
         """Initialize the Jules connector.
 
@@ -144,25 +145,18 @@ class JulesConnector(VendorConnectorBase):
             api_key: Jules API key. Defaults to JULES_API_KEY env var.
             base_url: API base URL. Defaults to production.
             timeout: Request timeout in seconds.
+            **kwargs: Extra arguments for base class.
         """
-        super().__init__()
-        self._api_key = api_key or os.environ.get("JULES_API_KEY", "")
-        self.base_url = base_url or self.BASE_URL
-        self.timeout = timeout
+        super().__init__(api_key=api_key, base_url=base_url, timeout=timeout, **kwargs)
 
-        if not self._api_key:
-            raise ValueError("Jules API key required. Set JULES_API_KEY or pass api_key.")
+    def _build_headers(self) -> dict[str, str]:
+        """Build Jules-specific headers."""
+        return {
+            "X-Goog-Api-Key": self.api_key,
+            "Content-Type": "application/json",
+        }
 
-        self._client = httpx.Client(
-            base_url=self.base_url,
-            timeout=self.timeout,
-            headers={
-                "X-Goog-Api-Key": self._api_key,
-                "Content-Type": "application/json",
-            },
-        )
-
-    def _handle_response(self, response: httpx.Response) -> dict:
+    def _handle_response(self, response) -> dict:
         """Handle API response, raising on errors."""
         if not response.is_success:
             try:
@@ -194,7 +188,7 @@ class JulesConnector(VendorConnectorBase):
         if page_token:
             params["pageToken"] = page_token
 
-        response = self._client.get("/sources", params=params)
+        response = self.get("/sources", params=params)
         data = self._handle_response(response)
 
         return [Source(**s) for s in data.get("sources", [])]
@@ -241,7 +235,7 @@ class JulesConnector(VendorConnectorBase):
         if require_plan_approval:
             body["requirePlanApproval"] = True
 
-        response = self._client.post("/sessions", json=body)
+        response = self.post("/sessions", json=body)
         data = self._handle_response(response)
 
         return Session(**data)
@@ -259,7 +253,7 @@ class JulesConnector(VendorConnectorBase):
         if not session_name.startswith("sessions/"):
             session_name = f"sessions/{session_name}"
 
-        response = self._client.get(f"/{session_name}")
+        response = self.get(f"/{session_name}")
         data = self._handle_response(response)
 
         return Session(**data)
@@ -278,7 +272,7 @@ class JulesConnector(VendorConnectorBase):
         if page_token:
             params["pageToken"] = page_token
 
-        response = self._client.get("/sessions", params=params)
+        response = self.get("/sessions", params=params)
         data = self._handle_response(response)
 
         return [Session(**s) for s in data.get("sessions", [])]
@@ -295,7 +289,7 @@ class JulesConnector(VendorConnectorBase):
         if not session_name.startswith("sessions/"):
             session_name = f"sessions/{session_name}"
 
-        response = self._client.post(f"/{session_name}:approvePlan")
+        response = self.post(f"/{session_name}:approvePlan")
         self._handle_response(response)
 
         # API returns empty on success, fetch updated session
@@ -318,7 +312,7 @@ class JulesConnector(VendorConnectorBase):
             session_name = f"sessions/{session_name}"
 
         # The API uses sendMessage, not addUserResponse
-        response = self._client.post(f"/{session_name}:sendMessage", json={})
+        response = self.post(f"/{session_name}:sendMessage", json={})
         self._handle_response(response)
 
         # API returns empty on success, fetch updated session
@@ -334,13 +328,3 @@ class JulesConnector(VendorConnectorBase):
             Updated Session object.
         """
         return self.add_user_response(session_name)
-
-    def close(self):
-        """Close the HTTP client."""
-        self._client.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.close()
