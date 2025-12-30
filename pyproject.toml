@@ -85,6 +85,11 @@ meshy = [
     "validators>=0.22.0",
     "filelock>=3.13.0",
 ]
+# Secrets connector (native bindings optional, CLI fallback available)
+# Note: secretssync native bindings must be built separately via gopy
+secrets = [
+    "pyyaml>=6.0.0",
+]
 
 # === AI Framework Extras (optional tool frameworks) ===
 # We provide tools; users choose their LLM provider.
@@ -272,6 +277,7 @@ aws = "vendor_connectors.aws:AWSConnector"
 slack = "vendor_connectors.slack:SlackConnector"
 zoom = "vendor_connectors.zoom:ZoomConnector"
 vault = "vendor_connectors.vault:VaultConnector"
+secrets = "vendor_connectors.secrets:SecretsConnector"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vendor_connectors"]
