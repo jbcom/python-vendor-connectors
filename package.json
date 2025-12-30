@@ -1,0 +1,12 @@
+{
+  "name": "{{ REPO_NAME }}",
+  "version": "0.1.0",
+  "description": "A data package in the Extended Data Library",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo \"No lint script specified\""
+  },
+  "author": "Extended Data Library",
+  "license": "MIT"
+}
