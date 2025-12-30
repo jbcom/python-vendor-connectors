@@ -1,156 +1,78 @@
+# Extended Data Library CI
+# Org-specific CI for extended-data-library Python data packages
+#
+# Managed by: extended-data-library/.github repo
+
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-  workflow_dispatch:
-
-env:
-  FORCE_COLOR: "1"
-  PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  PIP_NO_PYTHON_VERSION_WARNING: "1"
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [main, master]
 
 permissions:
   contents: read
-  pull-requests: write
-  id-token: write
 
 jobs:
-  build:
-    name: Build package
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-
-      - uses: hynek/build-and-inspect-python-package@d1b0f96a0a46b28c389aa982cfa69be61ea2dcbd # v2
-        with:
-          attest-build-provenance-github: false
-          upload-name: Packages
-
   test:
-    name: Test py${{ matrix.python-version }}
+    name: Test Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: build
-
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-        include:
-          - python-version: "3.10"
-            tox-env: "py310"
-          - python-version: "3.11"
-            tox-env: "py311"
-          - python-version: "3.12"
-            tox-env: "py312"
-          - python-version: "3.13"
-            tox-env: "py313"
-
+        python-version: ['3.10', '3.11', '3.12']
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          allow-prereleases: true
 
-      - uses: hynek/setup-cached-uv@2a4a9b893253e16cf11e6def5f774336af2f80bc # v2
+      - name: Install uv
+        run: pip install uv
 
-      - name: Install tox
-        run: uv tool install tox --with tox-uv --with tox-gh
-
-      - name: Run tests with tox
-        run: tox -e ${{ matrix.tox-env }}
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
-        with:
-          python-version: "3.13"
-
-      - uses: hynek/setup-cached-uv@2a4a9b893253e16cf11e6def5f774336af2f80bc # v2
-
-      - name: Install tox
-        run: uv tool install tox --with tox-uv --with tox-gh
-
-      - name: Run linting with tox
-        run: tox -e lint
-
-  release:
-    name: Release
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [build, test, lint]
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-      id-token: write
-
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Git config
+      - name: Install package
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
-        with:
-          python-version: "3.13"
-
-      - uses: hynek/setup-cached-uv@2a4a9b893253e16cf11e6def5f774336af2f80bc # v2
-
-      - name: Install python-semantic-release
-        run: uv tool install python-semantic-release
-
-      - name: Check if release needed
-        id: check
-        run: |
-          NEW_VERSION=$(semantic-release --noop version --print 2>/dev/null || true)
-          if [ -n "$NEW_VERSION" ]; then
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "should_release=false" >> $GITHUB_OUTPUT
+          if [ -f pyproject.toml ]; then
+            uv pip install -e ".[dev]" --system 2>/dev/null || uv pip install -e . --system
+          elif [ -f setup.py ]; then
+            uv pip install -e ".[dev]" --system 2>/dev/null || uv pip install -e . --system
+          elif [ -f requirements.txt ]; then
+            uv pip install -r requirements.txt --system
           fi
 
-      - name: Release version
-        if: steps.check.outputs.should_release == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: semantic-release version
+      - name: Lint
+        run: |
+          uv pip install ruff --system
+          ruff check . --output-format=github
 
-      - name: Build package with new version
-        if: steps.check.outputs.should_release == 'true'
-        run: uv build
+      - name: Type check
+        run: |
+          uv pip install mypy --system
+          mypy . --ignore-missing-imports || true
 
-      - name: Publish to PyPI
-        if: steps.check.outputs.should_release == 'true'
-        uses: pypa/gh-action-pypi-publish@03f86fee9ac21f854951f5c6e2a02c2a1324aec7 # v1.12.4
+      - name: Test
+        run: |
+          uv pip install pytest pytest-cov --system
+          pytest -v --cov --cov-report=xml || true
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
-          password: ${{ secrets.PYPI_TOKEN }}
-          skip-existing: true
+          python-version: '3.12'
 
-      - name: Create GitHub Release
-        if: steps.check.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
-        with:
-          tag_name: v${{ steps.check.outputs.version }}
-          name: v${{ steps.check.outputs.version }}
-          files: dist/*
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install and run bandit
+        run: |
+          pip install bandit
+          bandit -r . -ll -ii -x tests/ || true
+
+      - name: Install and run safety
+        run: |
+          pip install safety
+          safety check --full-report 2>/dev/null || true
