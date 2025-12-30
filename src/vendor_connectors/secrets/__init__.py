@@ -277,11 +277,18 @@ class SecretsConnector(VendorConnectorBase):
 
     def _cli_get_config_info(self, config_path: str) -> ConfigInfo:
         """Get config info via CLI."""
-        # For CLI mode, we parse the YAML directly
         try:
             import yaml
+        except ImportError:
+            return ConfigInfo(error_message="pyyaml is required for CLI mode but not installed.")
+
+        try:
             with open(config_path) as f:
                 cfg = yaml.safe_load(f)
+
+            if not isinstance(cfg, dict):
+                # Handles empty file (cfg=None) or non-dict root
+                cfg = {}
 
             return ConfigInfo(
                 valid=True,
@@ -293,8 +300,10 @@ class SecretsConnector(VendorConnectorBase):
                 vault_address=cfg.get("vault", {}).get("address", ""),
                 aws_region=cfg.get("aws", {}).get("region", ""),
             )
-        except Exception as e:
-            return ConfigInfo(error_message=str(e))
+        except FileNotFoundError:
+            return ConfigInfo(error_message=f"Configuration file not found: {config_path}")
+        except yaml.YAMLError as e:
+            return ConfigInfo(error_message=f"Error parsing YAML file: {e}")
 
     def run_pipeline(
         self,
@@ -349,13 +358,17 @@ class SecretsConnector(VendorConnectorBase):
 
         cmd = [
             self._cli_path,
-            "pipeline",
+            options.operation.value,
             "--config", config_path,
             "--output", "json",
         ]
 
         if options.dry_run:
             cmd.append("--dry-run")
+        if options.compute_diff:
+            cmd.append("--diff")
+        if options.output_format:
+            cmd.extend(["--format", options.output_format.value])
         if options.targets:
             cmd.extend(["--targets", ",".join(options.targets)])
         if options.continue_on_error:
