@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 def test_cursor_launch_agent():
     """Test launch_agent tool."""
     from vendor_connectors.cursor.tools import cursor_launch_agent
-    
+
     with patch("vendor_connectors.cursor.CursorConnector") as mock_connector_class:
         mock_connector = MagicMock()
         mock_agent = MagicMock()
@@ -17,7 +17,7 @@ def test_cursor_launch_agent():
         mock_agent.repository = "org/repo"
         mock_connector.launch_agent.return_value = mock_agent
         mock_connector_class.return_value = mock_connector
-        
+
         result = cursor_launch_agent(prompt="Fix bug", repository="org/repo")
         assert result["agent_id"] == "agent_123"
         assert result["state"] == "running"
@@ -26,7 +26,7 @@ def test_cursor_launch_agent():
 def test_cursor_get_agent_status():
     """Test get_agent_status tool."""
     from vendor_connectors.cursor.tools import cursor_get_agent_status
-    
+
     with patch("vendor_connectors.cursor.CursorConnector") as mock_connector_class:
         mock_connector = MagicMock()
         mock_agent = MagicMock()
@@ -36,7 +36,7 @@ def test_cursor_get_agent_status():
         mock_agent.pr_url = "https://github.com/org/repo/pull/1"
         mock_connector.get_agent_status.return_value = mock_agent
         mock_connector_class.return_value = mock_connector
-        
+
         result = cursor_get_agent_status(agent_id="agent_123")
         assert result["agent_id"] == "agent_123"
         assert result["state"] == "finished"

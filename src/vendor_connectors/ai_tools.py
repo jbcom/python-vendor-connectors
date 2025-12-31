@@ -3,6 +3,7 @@
 This module provides Pydantic-based helpers to define AI tool schemas
 that are compatible with the Vercel AI SDK and other modern AI frameworks.
 """
+
 from __future__ import annotations
 
 from typing import Any, Type
