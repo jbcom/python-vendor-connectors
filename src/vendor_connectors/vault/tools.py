@@ -23,6 +23,8 @@ class ListSecretsSchema(BaseModel):
     max_depth: Optional[int] = Field(None, description="Maximum directory depth to traverse.")
 
 
+ListSecretsSchema.model_rebuild()
+
 class ReadSecretSchema(BaseModel):
     """Schema for reading a Vault secret."""
 
@@ -196,3 +198,4 @@ __all__ = [
     "read_secret",
     "TOOL_DEFINITIONS",
 ]
+ReadSecretSchema.model_rebuild()
