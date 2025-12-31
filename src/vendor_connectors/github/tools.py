@@ -4,7 +4,6 @@ This module provides tools for GitHub operations that work with multiple
 AI agent frameworks.
 """
 
-from __future__ import annotations
 
 from typing import Any, Optional
 

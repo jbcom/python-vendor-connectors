@@ -4,7 +4,6 @@ This module provides tools for Zoom operations that work with multiple
 AI agent frameworks.
 """
 
-from __future__ import annotations
 
 from typing import Any
 
@@ -31,7 +30,9 @@ class ListMeetingsSchema(BaseModel):
     """Pydantic schema for the zoom_list_meetings tool."""
 
     user_id: str = Field(..., description="User ID or email address")
-    meeting_type: str = Field("scheduled", description="Type of meetings (scheduled, live, upcoming, previous_meetings)")
+    meeting_type: str = Field(
+        "scheduled", description="Type of meetings (scheduled, live, upcoming, previous_meetings)"
+    )
     max_results: int = Field(100, description="Maximum number of meetings to return.")
 
 

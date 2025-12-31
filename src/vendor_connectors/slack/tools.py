@@ -21,7 +21,6 @@ Usage:
     tools = get_tools()  # Returns best format for installed framework
 """
 
-from __future__ import annotations
 
 import os
 from typing import Any

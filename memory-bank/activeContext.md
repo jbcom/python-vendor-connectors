@@ -229,3 +229,16 @@ Notable PRs created by finished agents:
 
 ---
 *Last updated: 2025-12-29*
+## Session: 2025-12-31 (CI Fixes)
+
+### Completed
+- **Fixed Ruff formatting issues** across 6 files in `src/` and `tests/`.
+- **Resolved Pydantic 2 / CrewAI compatibility issues**:
+  - Removed `from __future__ import annotations` from all `tools.py` files (`vault`, `cursor`, `zoom`, `aws`, `google`, `github`, `anthropic`, `slack`, `meshy`).
+  - This fixes `pydantic.errors.PydanticUserError: Vault_List_Secrets is not fully defined` when using CrewAI's auto-generation of tools.
+- **Verified Vault tool tests** pass locally with `crewai` and `hvac` installed.
+
+### Key Learnings
+- `from __future__ import annotations` can cause issues with Pydantic 2 when models are used by external libraries (like CrewAI) that perform runtime introspection and model generation, especially if standard imports like `Optional` are used. Removing it ensures type hints are available as actual types at runtime.
+
+---

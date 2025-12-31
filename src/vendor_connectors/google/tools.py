@@ -23,7 +23,6 @@ Usage:
     tools = get_tools()  # Returns best format for installed framework
 """
 
-from __future__ import annotations
 
 from typing import Any
 

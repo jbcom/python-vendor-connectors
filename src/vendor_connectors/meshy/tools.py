@@ -5,7 +5,6 @@ AI agent frameworks. The core functions are framework-agnostic Python functions,
 with native wrappers for each supported framework.
 """
 
-from __future__ import annotations
 
 from typing import Any
 
